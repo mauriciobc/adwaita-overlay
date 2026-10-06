@@ -1,3 +1,7 @@
+/*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 /* tools/probe-foreign.c — what Chromium reads out of the GTK theme when
  * libadwaita is *not* loaded.
  *

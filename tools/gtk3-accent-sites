@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 """Inventory every declaration in GTK3's built-in Adwaita that depends on
 the accent colour.
 

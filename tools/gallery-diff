@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # Compare two render-gallery output directories, pixel by pixel.
 #
 #   tools/gallery-diff <dirA> <dirB>

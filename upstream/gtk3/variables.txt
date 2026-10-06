@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#
+#
+# The GTK3 variable contract. One @define-color name per line, sorted.
+#
+# This is a different contract from upstream/variables.txt, and deliberately so.
+# The libadwaita contract guards a sheet that NAMES upstream selectors and
+# properties we hand-wrote rules against. The GTK3 front is not that: it is a
+# recompile of GTK3's own Adwaita plus libhandy's Adwaita sheets with the GNOME
+# accent substituted for the #3584e4 literals GTK3 bakes in (decisions.md G3).
+# So there is no hand-authored rule list to guard — there is a dependency on
+# the NAMES GTK3's built-in palette publishes, because our generated theme
+# resolves all of them and a rename silently paints the wrong colour.
+#
+# All 36 names GTK 3.24's Adwaita defines, and nothing else: the front is a
+# full recompile rather than an override, so it consumes the whole palette
+# rather than a subset. tools/check-selectors diffs this against the INSTALLED
+# libgtk-3.so.0 sheet (and against an archived copy by version argument), so a
+# GTK upgrade that renames or drops a name is reported by the pacman hook.
+#
+# Rules:
+#   - one name per line, bare (no @), sorted
+#   - a name GTK3 stops defining breaks the generated theme; remove it here in
+#     the same commit that regenerates the front
+#   - libhandy's Adwaita sheets are appended to the generated theme and resolve
+#     the same names; they are checked for SHEET DRIFT separately, not here
+borders
+content_view_bg
+error_color
+insensitive_base_color
+insensitive_bg_color
+insensitive_fg_color
+success_color
+text_view_bg
+theme_base_color
+theme_bg_color
+theme_fg_color
+theme_selected_bg_color
+theme_selected_fg_color
+theme_text_color
+theme_unfocused_base_color
+theme_unfocused_bg_color
+theme_unfocused_fg_color
+theme_unfocused_selected_bg_color
+theme_unfocused_selected_fg_color
+theme_unfocused_text_color
+unfocused_borders
+unfocused_insensitive_color
+warning_color
+wm_bg_a
+wm_bg_b
+wm_border
+wm_borders_edge
+wm_button_active_color_a
+wm_button_active_color_b
+wm_button_active_color_c
+wm_button_hover_color_a
+wm_button_hover_color_b
+wm_highlight
+wm_shadow
+wm_title
+wm_unfocused_title

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # The variable contract for L0. One upstream custom property per line,
 # sorted — every upstream variable that src/_tokens.scss reads.
 #

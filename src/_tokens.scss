@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 mauriciobc
+// SPDX-License-Identifier: LGPL-2.1-or-later
 // L0 — tokens. Every --ov-* variable is defined here and nowhere else, on
 // :root, derived from upstream variables (color-mix() / relative colours)
 // so accent, dark mode and contrast keep driving the material system with
@@ -23,6 +25,62 @@
 }
 
 // ---------------------------------------------------------------------
+// The FALLBACK PALETTE — private named colours, scheme-split.
+//
+// These exist because this sheet has to be loadable two ways, and they
+// did not both work until 6 Oct 2026:
+//
+//   1. as $XDG_CONFIG_HOME/gtk-4.0/gtk.css, where libadwaita's own sheet is
+//      loaded underneath and every --ov-up-* resolves from it;
+//   2. as <datadir>/themes/Adwaita-overlay/gtk-4.0/gtk.css, selected by
+//      GTK_THEME — the conventional GTK theme directory.
+//
+// In (2) the theme directory REPLACES GTK's built-in palette, so
+// @theme_bg_color, @accent_color and the rest are simply not defined. The
+// original fallbacks therefore computed to nothing, every --ov-up-* alias
+// went invalid at computed-value time, and surfaces painted NOTHING — the
+// DD3 "Helium came up black" mechanism, this time triggered by our own
+// theme directory rather than by a non-libadwaita app. Measured: a button
+// using `var(--window-bg-color, @ov_stock_bg)` read 0,0,0 under
+// GTK_THEME, and 246,245,244 through the user-config path.
+//
+// So the sheet carries its own palette, under names prefixed ov_ rather than
+// upstream's. The prefix is deliberate: redeclaring @theme_bg_color at
+// priority 800 would shadow the value libadwaita (or a competing theme)
+// publishes, and even though only we read these, shadowing a name other
+// stylesheets may resolve is a bad trade for no gain.
+//
+// Values are GTK 4's OWN built-in Default theme, not libadwaita's — and
+// that distinction is the whole point. A fallback is only ever read where
+// libadwaita is absent, so the palette in force at that moment is the
+// built-in Default (or whatever third-party theme is active), not
+// libadwaita's. The two disagree substantially: Default's dark theme_bg_color
+// is #353535 against libadwaita's light #fafafb. Taking the numbers from
+// libadwaita was measurably wrong — buttons moved max Δ113/255 for a change
+// that should have been invisible. Source: gresource on
+// /usr/lib/libgtk-4.so.1, /org/gtk/libgtk/theme/Default/Default-{light,dark}.css.
+//
+// Single tier on purpose: `var(--a, var(--b, @fallback))` does NOT work as a
+// two-tier fallback here. When --b is invalid at computed-value time GTK
+// propagates the invalidity through the var() instead of taking the third
+// argument, so the outer fallback is never consulted (measured: 0,0,0).
+// ---------------------------------------------------------------------
+@define-color ov_stock_bg        #f6f5f4;
+@define-color ov_stock_base      #ffffff;
+@define-color ov_stock_sel_bg    #3584e4;
+@define-color ov_stock_accent    #3584e4;
+@define-color ov_stock_error     #cc0000;
+@define-color ov_stock_success   #33d17a;
+@define-color ov_stock_warning   #f57900;
+
+@media (prefers-color-scheme: dark) {
+  @define-color ov_stock_bg        #353535;
+  @define-color ov_stock_base      #2d2d2d;
+  @define-color ov_stock_sel_bg    #15539e;
+  @define-color ov_stock_success   #26ab62;
+}
+
+// ---------------------------------------------------------------------
 // The ACCENT REGISTER — every token derived from --ov-up-accent, in one
 // place so it can be derived twice (26 Sep 2026, decisions.md "Neon hover").
 //
@@ -37,17 +95,61 @@
 //
 //   lit-*  — see "The LIT register" below (pen pass).
 //   neon-* — the hover glow: a hot core line, the tube colour it falls off
-//            into, both from the accent's own hue (relative HSL).
+//            into, both from the accent's own hue.
+//
+// WHY OKLAB AND NOT HSL (6 Oct 2026). The pen pass (404d995) moved these
+// rungs off color-mix() onto relative HSL so the pen's own stops became
+// reachable, and that decision stands — but HSL lightness is a property of
+// the HSL geometry, not of how light the result looks. Measured over the
+// nine system accents (decisions.md H1, 6 Oct 2026): the HSL
+// rung h 92% l 72% lands at oklab L 0.852 (red) to 0.983 (yellow) — a
+// spread of 0.132 in *perceived* lightness, so the lit edge is a heavy
+// near-white line on a yellow CTA and a faint one on a red one. Nothing
+// chose that; it is the ramp.
+//
+// Upstream already does this correctly and is why the fix is available:
+// --accent-color is derived as oklab(from --accent-bg-color min(l, 0.5) a b)
+// in the light scheme and max(l, 0.85) in the dark (gtk.css L2512), which
+// pins all nine accents into oklab L 0.499-0.509 — a spread of 0.010. The
+// sources are already perceptually uniform, so an ABSOLUTE oklab lightness
+// target is the whole fix: one number per rung, identical on all nine.
+//
+// The chroma factors are the other half, and they are NOT a translation of
+// the pen's 92%/83% saturation. Measured, C(rung)/C(source) under HSL runs
+// 0.34 to 1.82 across the nine accents — HSL saturation-% has no
+// hue-independent oklab counterpart, because at 72% lightness sRGB's gamut
+// is what compresses the chroma, not the 92%. What carries over is the
+// INTENT 404d995 recorded — "the pair must sit inside the palette it
+// lights, not outside it" — expressed as one factor against the accent's
+// own a/b. Both are anchored on the blue rung so blue is unchanged, which
+// is the reference that was tuned by eye.
+//
+//   rung                 L       k      anchored on blue
+//   lit-edge-top    0.938    0.40      rung 0.938 / chroma 0.066 of 0.165
+//   lit-edge-bottom 0.898    0.51      rung 0.898 / chroma 0.084 of 0.165
+//   neon-core       0.959    0.34      rung 0.959 / chroma 0.056 of 0.165
+//   neon-tube       0.925    0.54      rung 0.925 / chroma 0.088 of 0.165
+//
+// The neon pair needs no scheme split, and under oklab it no longer wants
+// one: HSL l 78% was a big lift over a light-scheme source (L 0.50) and
+// almost none over a dark-scheme source (L 0.85), so the same token read at
+// two different strengths. An absolute L reads the same in both.
+//
+// Slate is the one accent that visibly moves the other way: its source
+// chroma is 0.038 (a near-grey blue), so scaling a/b can never give it the
+// rung's chroma the way HSL's high-lightness gamut expansion did. The lit
+// edge on slate is now correctly grey rather than tinted. Recorded as a
+// known change, not a regression.
 // ---------------------------------------------------------------------
 @mixin ov-accent-register() {
-  --ov-lit-edge-top: HSL(from var(--ov-up-accent) h 92% 72%);
-  --ov-lit-edge-bottom: HSL(from var(--ov-up-accent) h 83% 61%);
+  --ov-lit-edge-top: oklab(from var(--ov-up-accent) 0.938 calc(a * 0.40) calc(b * 0.40));
+  --ov-lit-edge-bottom: oklab(from var(--ov-up-accent) 0.898 calc(a * 0.51) calc(b * 0.51));
   --ov-lit-bloom: color-mix(in srgb, var(--ov-up-accent) 40%, transparent);
-  --ov-neon-core: HSL(from var(--ov-up-accent) h 100% 78%);
-  --ov-neon-tube: HSL(from var(--ov-up-accent) h 95% 62%);
+  --ov-neon-core: oklab(from var(--ov-up-accent) 0.959 calc(a * 0.34) calc(b * 0.34));
+  --ov-neon-tube: oklab(from var(--ov-up-accent) 0.925 calc(a * 0.54) calc(b * 0.54));
   @media (prefers-color-scheme: dark) {
-    --ov-lit-edge-top: HSL(from var(--ov-up-accent) h 95% 72%);
-    --ov-lit-edge-bottom: HSL(from var(--ov-up-accent) h 90% 61%);
+    --ov-lit-edge-top: oklab(from var(--ov-up-accent) 0.952 calc(a * 0.70) calc(b * 0.70));
+    --ov-lit-edge-bottom: oklab(from var(--ov-up-accent) 0.938 calc(a * 0.93) calc(b * 0.93));
     --ov-lit-bloom: color-mix(in srgb, var(--ov-up-accent) 45%, transparent);
   }
 }
@@ -87,17 +189,17 @@
   // palette steps libadwaita names directly. No libadwaita app is
   // affected: there the var() wins and the fallback is never read.
   // ---------------------------------------------------------------------
-  --ov-up-window-bg: var(--window-bg-color, @theme_bg_color);
-  --ov-up-view-bg: var(--view-bg-color, @theme_base_color);
-  --ov-up-bar-bg: var(--headerbar-bg-color, @theme_bg_color);
-  --ov-up-bar-backdrop: var(--headerbar-backdrop-color, @theme_bg_color);
-  --ov-up-accent: var(--accent-color, @accent_color);
-  --ov-up-accent-fill: var(--accent-bg-color, @theme_selected_bg_color);
+  --ov-up-window-bg: var(--window-bg-color, @ov_stock_bg);
+  --ov-up-view-bg: var(--view-bg-color, @ov_stock_base);
+  --ov-up-bar-bg: var(--headerbar-bg-color, @ov_stock_bg);
+  --ov-up-bar-backdrop: var(--headerbar-backdrop-color, @ov_stock_bg);
+  --ov-up-accent: var(--accent-color, @ov_stock_accent);
+  --ov-up-accent-fill: var(--accent-bg-color, @ov_stock_sel_bg);
   // The two semantic fills upstream paints levelbar blocks with directly
   // (block.low / block.full, gtk.css L1335/L1339) — read here so the gel can
   // restate them translucent. Fallbacks: GTK's built-in named colours.
-  --ov-up-warning-fill: var(--warning-bg-color, @warning_color);
-  --ov-up-success-fill: var(--success-bg-color, @success_color);
+  --ov-up-warning-fill: var(--warning-bg-color, @ov_stock_warning);
+  --ov-up-success-fill: var(--success-bg-color, @ov_stock_success);
   --ov-up-light-1: var(--light-1, white);
   --ov-up-dark-5: var(--dark-5, black);
   // A percentage, not a colour: upstream's border alpha for
@@ -410,7 +512,7 @@
 // the --ov-up-* block.
 // ---------------------------------------------------------------------
 .destructive-action {
-  --ov-up-accent: var(--accent-color, @error_color);
+  --ov-up-accent: var(--accent-color, @ov_stock_error);
   @include ov-accent-register();
 }
 
@@ -420,13 +522,13 @@
 // hue; the gel overrides background-color from --ov-up-accent-fill, which
 // computes on :root, so the alias is re-declared where upstream re-points.
 .error {
-  --ov-up-accent-fill: var(--accent-bg-color, @error_color);
+  --ov-up-accent-fill: var(--accent-bg-color, @ov_stock_error);
 }
 
 .warning {
-  --ov-up-accent-fill: var(--accent-bg-color, @warning_color);
+  --ov-up-accent-fill: var(--accent-bg-color, @ov_stock_warning);
 }
 
 .success {
-  --ov-up-accent-fill: var(--accent-bg-color, @success_color);
+  --ov-up-accent-fill: var(--accent-bg-color, @ov_stock_success);
 }

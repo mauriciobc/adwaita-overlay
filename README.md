@@ -1,207 +1,73 @@
+<!--
+SPDX-FileCopyrightText: 2026 mauriciobc
+SPDX-License-Identifier: LGPL-2.1-or-later
+-->
+
 # adwaita-overlay
 
-Bevels, texture and depth for libadwaita — an additive CSS overlay loaded at
-`GTK_STYLE_PROVIDER_PRIORITY_USER` (800) over libadwaita's stylesheet at
-`PRIORITY_THEME` (200). Personal use only: never redistributed, nothing
-proposed upstream, libadwaita never patched or forked.
+Bevels, texture and depth for libadwaita. It is a CSS sheet loaded *above*
+libadwaita's own stylesheet, not a fork: libadwaita is never patched,
+replaced or rebuilt, and a selector-contract check fails loudly if an
+upstream release stops providing something the sheet depends on.
 
-Read [docs/proposal.md](docs/proposal.md) first (the design document, with
-the accepted review amendments), then [BACKLOG.md](BACKLOG.md) (the working
-backlog) and [docs/decisions.md](docs/decisions.md) (the running decision
-record).
+![Light scheme](docs/screenshots/adw-light.png)
 
-## Layout
+![Dark scheme](docs/screenshots/adw-dark.png)
 
-```
-src/            L0 tokens, L1 primitives, L2 surfaces (SCSS, built by sassc)
-assets/         empty: the grain is an inline SVG data: URI in src/_tokens.scss
-                (ov-grain()); 9-slice descoped —
-                border-image does not follow border-radius (decisions.md E1)
-upstream/       pinned-version, selector + variable contracts, cache/ (gitignored);
-                gtk3/ and libhandy/pinned-version for the GTK3 theme
-tools/          fetch-upstream, check-selectors, build, render-widget.c,
-                probe-motion.c, probe-foreign.c, render-gallery.c,
-                gallery-diff, track, gtk3-accent-sites, build-gtk3
-hooks/          pacman PostTransaction hook
-docs/           proposal, decisions, evening-0 experiments
-build/          sassc output (gitignored)
-```
+Left: stock Adwaita. Right: with adwaita-overlay. (Light scheme above, dark
+scheme below.)
 
-## Toolchain
+## What it covers
 
-All present: sassc, glib2 (gresource), bsdtar, git, gcc (for render-widget),
-python3 (gtk3-accent-sites).
+- libadwaita apps (Nautilus, Settings, Text Editor, ...) and plain GTK4 apps,
+  through the per-user sheet (see below).
+- **Not** GTK3. The GTK3 front is a development tool and is not part of 1.0.
+- The gnome-shell front is an empty stylesheet today.
+- Flatpak apps only with an override:
+  `flatpak override --user --filesystem=xdg-config/gtk-4.0`. Flatpak has no
+  theme extension point for GTK4.
 
-## Commands
+## Install
 
-```
-tools/fetch-upstream             # fill upstream/cache/<pinned>/gtk.css from the Arch archive
-tools/fetch-upstream 1:1.6.5-1   # any archived version (handles the pre-1.9 four-file layout)
-tools/check-selectors            # both contracts (libadwaita + gtk3) vs the *installed*
-                                 # sheets — what the pacman hook runs
-tools/check-selectors 1:1.9.4-1  # libadwaita contract vs an archived version (network)
-tools/fetch-upstream --gtk3      # GTK3 Adwaita SCSS for the pinned tag, from GNOME GitLab
-tools/fetch-upstream --libhandy  # libhandy's theme SCSS for its pinned tag
-tools/check-selectors --gtk3     # gtk3 only; also reports SHEET DRIFT (gtk3, libhandy) vs the pins
-tools/gtk3-accent-sites          # TSV of every GTK3 declaration that depends on the
-                                 # accent (BACKLOG G, decisions.md "GTK3 accent")
-tools/build-gtk3                 # GTK3 theme Adwaita-overlay: upstream Adwaita + libhandy
-                                 # recompiled with the GNOME accent (--accent to override)
-tools/build-gtk3 --activate      # ...and set gtk-theme to it; --deactivate goes back to Adwaita
-tools/build                      # sassc + symlink ~/.config/gtk-4.0/gtk.css + restart daemons
-tools/build --debug              # the same, plus a 1px outline on every node
-                                 # (build/gtk-debug.css) — see "Aiming a rule"
-```
+- **Arch:** package `adwaita-overlay` (once published on the AUR).
+- **From source** (needs `meson` and `sassc`):
 
-## Aiming a rule
+  ```
+  meson setup _build --prefix=/usr
+  meson compile -C _build
+  meson test -C _build
+  sudo meson install -C _build
+  ```
 
-An L2 rule that is "not winning" is nearly always a rule aimed at the wrong
-node — which is why the Inspector exists. Two ways to see the boxes: GTK
-Inspector (`GTK_DEBUG=interactive <app>`), and the debug build, which outlines
-every node at once. That second one is the pen pass's only inspection aid
-(codepen `xxyEYMJ`, its `--debug` token):
+## Enable, update, remove
 
 ```
-tools/build --debug --no-restart                              # installs the outlined sheet
-build/render-gallery build/gtk-debug.css /tmp/boxes controls  # ...or offscreen
-tools/build --no-restart                                      # back to the shipped sheet
+adwaita-overlay-install              # enable for your user
+adwaita-overlay-install --update     # after a package upgrade
+adwaita-overlay-install --uninstall  # remove
 ```
 
-It is a build and not a runtime token on purpose: `outline` on `*` at priority
-800 outranks every upstream focus ring, so at a hypothetical `--debug: 0` the
-declaration would still be there and would replace the focus ring with a 0px
-one. `src/_debug.scss` emits nothing unless `$ov-debug` is set, so the shipped
-sheet cannot grow the rule by accident.
+It copies the sheet to `~/.config/gtk-4.0/adwaita-overlay.css` and adds one
+marked `@import` line to your `gtk.css`; `--uninstall` removes exactly that
+line and restores your file byte for byte. Running apps need a restart.
 
-Offscreen render of one widget with one CSS file (pixel-level verdicts,
-X5 test card):
+Do not select the theme through `gtk-theme`: libadwaita ignores it, and
+reports of selecting a theme globally breaking libadwaita layout are recorded
+in `meson.build`.
 
-```
-gcc -O1 -o build/render-widget tools/render-widget.c $(pkg-config --cflags --libs gtk4)
-build/render-widget <css-file> <out.tiff> <button|headerbar> <width> <height>
-```
+## Upgrade safety
 
-Offscreen motion and state verdicts — walks a real button and a real
-`.boxed-list` row through hover, press and focus, and a headerbar through
-backdrop, sampling at rest / mid-transition / settled:
+`adwaita-overlay`'s contracts list every libadwaita selector and variable the
+sheet depends on. `check-selectors` compares them with the installed
+libadwaita, and the Arch package runs it from a pacman hook after every
+libadwaita upgrade (it reports, it never blocks the transaction).
 
-```
-gcc -O1 -o build/probe-motion tools/probe-motion.c $(pkg-config --cflags --libs gtk4)
-build/probe-motion build/gtk.css                                   # house motion
-build/probe-motion build/gtk.css 80 upstream/cache/1:1.9.4-1/gtk.css  # + upstream vars
-REDUCE=1 build/probe-motion build/gtk.css ...                       # prefers-reduced-motion
-NOANIM=1 build/probe-motion build/gtk.css ...                       # gtk-enable-animations=false
-SCHEME=dark build/probe-motion build/gtk.css ...                    # dark scheme
-```
+## Hacking, packaging, contributing
 
-Pass the upstream sheet whenever the surface under test derives from an
-upstream variable (`--headerbar-bg-color` and friends): without it the
-declaration is invalid at computed-value time and nothing measures.
+- [docs/HACKING.md](docs/HACKING.md): layout, tools, design notes
+- [docs/PACKAGING.md](docs/PACKAGING.md): building packages for other distros
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 
-## Tracking widget coverage
+## License
 
-Two halves. The eyeball half is the demo apps; the pixel half is the
-gallery. Both are launchers/renderers — neither writes into the repo.
-
-```
-tools/track                        # family -> demo page -> surface file
-tools/track <family>               # open that page (gtk4-widget-factory or
-                                   # gtk4-demo --run=<example>)
-tools/track <family> -i            # ...under GTK Inspector
-
-build/render-gallery none       out/stock    # every family, stock Adwaita
-build/render-gallery build/gtk.css out/overlay
-tools/gallery-diff out/stock out/overlay      # per-family pixel delta
-```
-
-Build the gallery once:
-
-```
-gcc -O1 -o build/render-gallery tools/render-gallery.c \
-    $(pkg-config --cflags --libs gtk4 libadwaita-1)
-```
-
-`render-gallery` renders 15 widget families offscreen (same mechanism as
-`render-widget`: a CssProvider at priority 800, `GtkWidgetPaintable` →
-`GskCairoRenderer` → TIFF), one TIFF per family, and takes the same
-`CONTRAST=more` / `SCHEME=dark` knobs. `gallery-diff` reports
-`changed_px  mean_delta  max_delta` per family, so a material change is
-visible as a number before it is judged by eye. `tools/track` names which
-family lives in which surface file, which is what makes coverage
-auditable rather than remembered.
-
-`STATE=<prelight|active|checked|focus-visible|drop>` renders that state on
-every widget in the family at once — a stress shot, not a per-widget
-state. The hover glow, the accent drop ring and the press well are
-invisible at rest by construction, so this is the only way to review the
-interaction register per family. It is how the bar-button glow and the
-`button.link` leak were judged:
-
-```
-STATE=prelight build/render-gallery build/gtk.css out/hover buttons
-STATE=prelight build/render-gallery none          out/hover-stock buttons
-tools/gallery-diff out/hover-stock out/hover
-```
-
-## Motion
-
-Motion lives in L0 (`--ov-motion-*`: curve, enter/exit/press/switch/ring)
-and every declaration emits through `ov-motion()` in L1 — which also
-restates upstream's focus-ring motion, because a `transition` declaration
-replaces the list rather than extending it. `prefers-reduced-motion:
-reduce` collapses every duration to `0ms` (same state language, no
-animation); `gtk-enable-animations=false` already does that globally in
-GTK itself. Rationale and measurements: `docs/decisions.md`, "Motion
-review — 23 Sep 2026".
-
-## Foreign apps (no libadwaita)
-
-GTK loads this sheet in **every** GTK4 process, including apps that never
-call `adw_init()` — Chromium and its forks (Helium), anything GTK4 without
-libadwaita. libadwaita's custom properties do not exist there, and a
-declaration whose only value is an undefined `var()` computes to *nothing*:
-GTK paints no background at all rather than falling back to the theme's own
-colour. Chromium builds its whole Linux palette out of rendered GTK nodes
-(`ui/gtk/gtk_color_mixers.cc` over `gtk_util.cc`'s `GetBgColor`) and forces
-the frame colour opaque, so "paints nothing" became a completely black
-browser window (decisions.md, "Foreign apps: Helium came up black",
-25 Sep 2026).
-
-The rule that keeps that from happening: every libadwaita variable the sheet
-reads is read in exactly one L0 alias (`--ov-up-*`), each carrying a GTK
-built-in named-colour fallback; surfaces and primitives reference the
-aliases and nothing else.
-
-`probe-foreign` reimplements Chromium's colour mixer against a bare GTK4 app
-and prints the inputs it reads plus the derived frame/toolbar colours. It
-exits 1 when any painted input comes out fully transparent — the exact
-condition Chromium renders as black:
-
-```
-gcc -O1 -o build/probe-foreign tools/probe-foreign.c \
-    $(pkg-config --cflags --libs gtk4)
-build/probe-foreign                    # what this machine reads now
-build/probe-foreign none               # stock GTK control
-build/probe-foreign build/gtk.css      # ...or any sheet, in isolation
-SCHEME=dark build/probe-foreign build/gtk.css
-CONTRAST=more build/probe-foreign build/gtk.css
-```
-
-## The contracts
-
-- `upstream/selectors.txt` — every selector atom L2 depends on upstream
-  having. Hand-written on purpose: adding a line is a deliberate act of
-  taking on a dependency.
-- `upstream/variables.txt` — every upstream variable L0 reads, all of them
-  through the `--ov-up-*` aliases. Guards the load-bearing layer; a renamed
-  upstream variable is caught here, not by the selector contract.
-
-`tools/check-selectors` exits 1 on any miss. The pacman hook runs it against
-the installed sheet after every libadwaita upgrade — no network, nothing
-written into the repo, safe as root:
-
-```
-sudo cp hooks/adwaita-overlay.hook /etc/pacman.d/hooks/
-```
-
-Fix the `Exec` path in the hook if the repo ever moves.
+LGPL-2.1-or-later. See [LICENSE](LICENSE).

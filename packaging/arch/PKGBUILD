@@ -1,0 +1,78 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Maintainer: adwaita-overlay contributors
+# Contributor: adwaita-overlay contributors
+
+pkgname=adwaita-overlay
+# The THEME DIRECTORY name is capitalised (meson.build: Adwaita-overlay) and is
+# not the same string as $pkgname. They are different namespaces: one is a
+# pacman package, the other is a GTK theme name (see decisions.md H8).
+# Mixing them up installs the sheet somewhere nothing looks for it.
+themedir=Adwaita-overlay
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Bevelled edges, layered texture and depth for libadwaita, as an additive CSS overlay"
+arch=('any')
+url="https://github.com/mauriciobc/adwaita-overlay"
+license=('LGPL-2.1-or-later')
+# glib2: the installed checker uses `gresource` to read libadwaita's sheet.
+depends=('bash' 'glib2' 'gawk' 'sed' 'grep')
+makedepends=('meson' 'sassc')
+# The forward contract axis needs the host libadwaita, only while checking.
+checkdepends=('libadwaita')
+install=adwaita-overlay.install
+# Conflicts cannot express "another tool also owns ~/.config/gtk-4.0/gtk.css",
+# which is the real single-writer problem. .install says so instead.
+
+# 'SKIP' in the in-repo copy only: the tarball contains this file, so its own
+# checksum cannot be recorded in it. The AUR copy gets the real sum via
+# `updpkgsums`.
+# The tarball is a `meson dist` one, which is wrapped in $pkgname-$pkgver/;
+# every phase therefore cds into it (a flat, hand-made tarball is gone).
+source=("$pkgname-$pkgver.tar.xz::https://github.com/mauriciobc/adwaita-overlay/releases/download/v$pkgver/$pkgname-$pkgver.tar.xz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$pkgname-$pkgver"
+  # --prefix=/usr, NOT --prefix="$pkgdir/usr": makepkg exports DESTDIR=$pkgdir
+  # for package(), and meson prepends it to the configured prefix. Setting a
+  # $pkgdir-prefixed path here stages everything under
+  # $pkgdir/$pkgdir/usr — twice, which is how the first cut of this file
+  # shipped an empty package that still looked successful.
+  # --libexecdir=lib: Arch keeps helpers in /usr/lib, not /usr/libexec.
+  meson setup build \
+    --prefix=/usr \
+    --libexecdir=lib \
+    --buildtype=release \
+    -Dpacman_hook=true
+  meson compile -C build
+}
+
+# Verify what we actually shipped.
+check() {
+  cd "$pkgname-$pkgver"
+  meson test -C build --print-errorlogs
+  # Forward axis against the host's libadwaita: the package refuses to build
+  # when a selector/variable the sheet depends on has moved.
+  tools/check-selectors --sheet "$PWD/build/gtk.css"
+}
+
+# The install goes HERE, not in build(): makepkg creates $pkgdir with mode
+# 0111 during the build phase (makepkg:1521, `chmod a-srw`) so a build cannot
+# write into the package directory, and restores it to 755 only just before
+# packaging. DESTDIR is exported for us in this context.
+package() {
+  cd "$pkgname-$pkgver"
+  # DESTDIR set explicitly: makepkg 7.x does not export it for package(), and
+  # without it meson writes straight into the real /usr.
+  DESTDIR="$pkgdir" meson install -C build
+  # The staged sheet must be byte-identical to what meson compiled: a package
+  # whose installed bytes differ from its own build output is either a broken
+  # install rule or a stale build dir, and neither is worth shipping.
+  cmp -s build/gtk.css \
+         "$pkgdir/usr/share/themes/$themedir/gtk-4.0/gtk.css" || {
+    echo ">>> the staged sheet differs from the compiled one"
+    return 1
+  }
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

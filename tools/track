@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # tools/track — the eyeball half of the loop. Opens the demo page that shows
 # a widget family on a real widget, so a material change can be judged where
 # it lives instead of in a pixel probe.

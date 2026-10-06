@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # Fetch an upstream stylesheet into upstream/cache/ (reproducible, gitignored).
 #
 # Usage: tools/fetch-upstream [version]

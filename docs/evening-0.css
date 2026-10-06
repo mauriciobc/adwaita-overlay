@@ -1,4 +1,8 @@
 /*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+/*
  * Evening 0 — mechanism experiments, run before any L1 code is written.
  * These four tests decide the shape of bevel(), whether texture survives
  * at all, and whether the assets/ 9-slice pipeline lives or dies.

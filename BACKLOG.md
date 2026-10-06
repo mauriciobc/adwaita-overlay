@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2026 mauriciobc
+SPDX-License-Identifier: LGPL-2.1-or-later
+-->
 # BACKLOG — adwaita-overlay
 
 How to read this file:
@@ -71,7 +75,7 @@ rebuild-and-restart cycle.*
   *Accept:* old file replaced by the build symlink; same visual effect; no
   raw colours outside L0.
 - [x] **P1.6** (P1) Install the pacman hook
-  (`sudo cp hooks/adwaita-overlay.hook /etc/pacman.d/hooks/`), then dry-run
+  (installed by the package when built with `-Dpacman_hook=true`), then dry-run
   the hook path: `sudo tools/check-selectors`.
   *Accept:* exit 0; `git status` clean afterwards — proof the guard never
   writes into the repo as root.
@@ -398,6 +402,45 @@ states × light/dark/HC, label pairs measured, plus a 2× crop pass.*
 - [ ] **X5** Fractional-scale test card: fixed checklist (headerbar,
   button, list, popover at 1×/1.25×/1.5×) run before every milestone
   sign-off.
+- [ ] **X7** The **selector** reverse axis (6 Oct 2026). `check-selectors
+  --reverse` covers the variable axis and dead tokens; the selector axis does
+  not invert, because `upstream/selectors.txt` deliberately registers the
+  atoms *upstream* uses rather than the ones the overlay writes
+  (`decisions.md` H2). Consequence: `src/_user.scss` can name an
+  unregistered upstream selector and the guard cannot see it. Worth a
+  separate allowlist file rather than by inverting the existing contract —
+  the contract's own rule is right and must not change.
+  *Accept:* a selector named in `_user.scss` but absent from both contracts
+  fails `check-selectors --reverse`.
+
+- [ ] **X9** Theme-directory vs user-config rendering (6 Oct 2026). The
+  installed `gtk-4.0/gtk.css` and the user-config import are the same bytes;
+  GTK loads them by different mechanisms and there is an unexplained
+  difference somewhere. A Δ51 figure was quoted and then **withdrawn** — the
+  probe had no libadwaita, so the overlay's CTA rules had no upstream
+  `background-image` to restate and the sampled pixel was never the overlay's
+  material (decisions.md H6). Not chased: the cause is GTK's named-theme
+  precedence, not expressible in our CSS, `!important` is banned by rule 4,
+  and upstream states no expectation to converge on. Only worth resuming with
+  a probe that can render the overlay's CTA in a libadwaita-free environment —
+  i.e. a real harness change, not a pixel tweak.
+  *Accept:* a probe that (a) renders a CTA through both mechanisms with the
+  same bytes, (b) can prove the overlay's own rule is the one painting, and
+  (c) reports Δ. Until (b) exists, no number here means anything.
+
+- [ ] **X8** Reconcile the `filter` ban with what the sheet actually does
+  (6 Oct 2026). `docs/proposal.md` amendment 7 says "`filter` is banned in
+  v1", naming `blur()` as the iGPU risk. The sheet emits **44** `filter:`
+  declarations: `brightness(0.96)` for the press read plus `filter: none`
+  reverts, and `_button.scss` transitions `filter` on hover/press. The
+  intent reads as "no `blur()`, depth is box-shadow ladders", and
+  `brightness()` is a press modulation rather than depth — but the text says
+  banned and the tree says otherwise. Decide which, then change the doc or
+  the sheet. Not done here: 44 declarations is a visual change, and it is
+  not this pass's call.
+  *Accept:* either the sheet carries no `filter` at all, or amendment 7 says
+  in words which functions are allowed and why.
+
 - [ ] **X6** Fold `tools/probe-motion` into the X5 card: build it
   alongside `render-widget`, and run the motion checklist (hover, press,
   focus ring, row entry) against the built sheet in normal, `REDUCE=1` and
@@ -553,9 +596,29 @@ Method and counts: decisions.md, "GTK3 accent: scope and method".*
   one does).
 - [ ] **G5** (P1) `render-gallery3`: GTK3 offscreen renderer + `gallery-diff`,
   so G3/G4 are judged in numbers.
-- [ ] **G6** (P2) Material on GTK3 — only if daily driving shows GTK3 apps
+- [x] **gtk3 contract was vacuous** (6 Oct 2026). `diff_contract` returned 0
+  on a missing contract file, and `upstream/gtk3/selectors.txt` /
+  `variables.txt` were never written — so `contract OK against gtk3` had
+  been printing green while checking nothing. Both files are now written
+  (G6) and the axis discriminates: verified by doctoring a cached sheet —
+  dropping an accent-carrying atom reports exactly that atom and exits 1,
+  renaming a `@define-color` reports the old name and exits 1, and dropping
+  an unregistered atom correctly reports nothing. `diff_contract` also still
+  prints `CONTRACT NOT WRITTEN` for an absent contract rather than a false
+  pass, and still returns 0: an absent contract is not an upstream break, and
+  the pacman hook must never block a system upgrade.
+
+- [x] **G6** (P2) Material on GTK3 — only if daily driving shows GTK3 apps
   reading inconsistent. Hand-written; would use `upstream/gtk3/selectors.txt`
   and `variables.txt` (named colours), which `check-selectors` already reads.
+  **The contract half is DONE (6 Oct 2026); the material half is not.**
+  `upstream/gtk3/variables.txt` (36 names) and `upstream/gtk3/selectors.txt`
+  (434 atoms) are written, so the GTK3 axis of `check-selectors` is no longer
+  vacuous. What is still open is the *material* question in the first
+  sentence: whether GTK3 apps should get the bevel/texture/depth system, not
+  just the accent. Deliberately untouched — the GTK3 front is a recompile of
+  upstream's own Adwaita, so adding material means forking that SCSS, which
+  is a different decision from the one this contract guards.
 
 ---
 
@@ -580,3 +643,62 @@ The clock is running. The stylesheet is complete and live; from here the
 project's only input is real use. Annoyances, breakages, and fatigues go
 to "Found during daily drive" above. The gate: two weeks (M7), then the
 final texture keep/drop call (DD2).
+
+
+## Accent register + contracts pass — 6 Oct 2026
+
+Started as "borrow what other projects do"; ended as a correctness pass over
+the accent register and a hole in the contracts. Verdicts and measurements
+are in `docs/decisions.md` H1–H4.
+
+- [x] **Accent register in oklab.** HSL spread the same lit rung across
+  **0.132** of perceived lightness over the nine system accents (0.852 red →
+  0.983 yellow); an absolute oklab target spreads it across none, because
+  upstream already pins the sources into L 0.499–0.509. Blue-anchored, so
+  the accent that was tuned by eye does not move. The 92%/83% saturation
+  choice did **not** port: measured C(rung)/C(source) runs 0.34–1.82, so only
+  the intent carried over. Verdict: decisions.md H1.
+  *Accept, met:* 12/15 families byte-identical vs the HSL build in light,
+  13/15 in dark; **0 px changed across all 15 under `prefers-contrast: more`**;
+  `probe-foreign` exit 0; `calc(a * 0.40)` proven to resolve by forcing the
+  target and watching pixels move.
+
+- [x] **Contract reverse axis.** `check-selectors --reverse`: every upstream
+  property the built sheet reads is in `variables.txt`, every `--ov-*` it
+  declares is read somewhere (52 tokens, 0 dead). Verified to bite by
+  injecting both fault classes. The selector axis does not invert — that is
+  the contract's own rule, and it is **X7**. Verdict: decisions.md H2.
+
+- [x] **`tools/probe-accent`.** The register is live: 2/2 links LIVE in light
+  and dark, control STALE, exit 0; stock control exits 1. Along the way it
+  established that the lit rungs paint only in a state, and that L0 aliases
+  `--accent-bg-color` and `--accent-color` **separately**. Verdict:
+  decisions.md H3.
+  *Accept, met:* the probe fails on a sheet with no register.
+
+- [x] **`src/_user.scss`.** Personal overrides, last word, empty by default.
+  Safe because of the reverse axis, which was the reason to build that first.
+  *Accept, met:* a legal use passes; an unregistered upstream variable fails
+  with exit 1 and names the line to add.
+
+- [x] **Cascade trap recorded.** Equal-specificity custom properties are
+  last-wins; a prepended `:root` palette override silently does nothing.
+  Verdict: decisions.md H4.
+
+### Metrics at the 6 Oct 2026 pin (for X3)
+
+| | |
+| --- | --- |
+| SCSS | 2757 lines |
+| built sheet | 1064 lines, 84 813 bytes |
+| `--ov-*` tokens | 52 (0 dead) |
+| upstream properties read | 13 (all registered) |
+| hardcoded hex outside L0 | **0** |
+| `color-mix()` | 248 |
+| relative-colour forms | 29, of which `oklab(from …)` 12 |
+| `!important` | **0** |
+| `prefers-contrast` blocks | 35 |
+| `filter:` declarations | **44** — see X8 |
+
+These replace the pre-pin numbers quoted in `docs/proposal.md`, which X3
+still owns; the `filter` row is the one that moved.

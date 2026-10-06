@@ -1,3 +1,7 @@
+/*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 /* tools/render-gallery.c — render the house widget gallery with one CSS file, offscreen.
  *
  *   render-gallery <css-file|none> <out-dir> [family]

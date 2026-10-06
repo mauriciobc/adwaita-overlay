@@ -1,3 +1,7 @@
+/*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 /* ==== 1e · NEUMORPHISM — soft extruded buttons ========================= */
 /* Same-surface material: element appears extruded from the background.
    Requires: element bg ≈ parent bg (Adwaita's window_bg at 84% alpha is

@@ -1,3 +1,7 @@
+/*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 /* tools/probe-motion.c — measure what the overlay's transitions actually do.
  *
  *   probe-motion <css-file> [sample-ms] [upstream-css]

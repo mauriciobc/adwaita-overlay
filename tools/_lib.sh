@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # Shared helpers for the adwaita-overlay tools. Sourced, never executed.
 
 # extract_sheet <libadwaita.so> — print the compiled stylesheet to stdout.
@@ -42,6 +44,28 @@ extract_selectors() {
 # that are *defined* in the sheet (not merely referenced via var()).
 extract_variables() {
   grep -oE -- '--[a-z0-9][a-z0-9-]*:' "$1" | tr -d ':' | sort -u
+}
+
+# extract_var_refs <gtk.css> — print the sorted set of custom properties the
+# sheet READS via var(), leading dash runs normalised to exactly two.
+# The normalisation is what the contract file already does by hand:
+# libadwaita spells one property with three dashes (---slider-border-color,
+# defined on `scale`) and tools/check-selectors matches it from the second
+# dash on, so upstream/variables.txt lists the two-dash form.
+extract_var_refs() {
+  grep -oE -- 'var\(\s*-{2,}[a-z0-9][a-z0-9-]*' "$1" \
+    | sed -E 's/var\(\s*//; s/^-{2,}/--/' | sort -u
+}
+
+# extract_declared_props <gtk.css> — print the sorted set of custom properties
+# the sheet DEFINES, all --ov-* by construction (L0 is the only layer that
+# declares, and it declares nothing else).
+# Not anchored to line start: a declaration may follow "{" on the same line,
+# so matching on the "--ov-x:" shape alone is both simpler and stricter.
+# Comments are stripped first so a commented-out token is not counted.
+extract_declared_props() {
+  sed 's:/\*.*\*/::g' "$1" | grep -oE -- '--ov-[a-z0-9-]+[[:space:]]*:' \
+    | grep -oE -- '--ov-[a-z0-9-]+' | sort -u
 }
 
 # extract_sheet_gtk3 <libgtk-3.so> — print GTK3's built-in Adwaita sheet,

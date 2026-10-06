@@ -1,3 +1,7 @@
+/*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 /* tools/render-widget.c — render one widget with one CSS file, offscreen.
  *
  *   render-widget <css-file> <out.tiff> <button|headerbar|box> <width> <height>

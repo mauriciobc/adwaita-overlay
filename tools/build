@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # Compile the overlay, install it, and restart style daemons so running
 # apps pick it up. GTK reads user CSS at process startup only —
 # --gapplication-service daemons (Nautilus, the file picker, …) keep
 # painting the old look until killed; they respawn on demand.
+#
+# Measured 6 Oct 2026 (decisions.md H3): the accent GSettings key IS live in
+# a running libadwaita app, but the sheet is not re-read from disk and
+# colour-scheme does not switch live either — hence this step rather than a
+# "save and it updates" promise.
 #
 # Usage: tools/build [--debug] [--no-restart]
 #

@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Arch post-install messaging. Deliberately performs NO action on the user's
+# config: the only way to reach libadwaita apps is to write
+# ~/.config/gtk-4.0/gtk.css, which is the user's decision to make, not a
+# package's to make for them. Messages live in functions: pacman sources this
+# file for every operation, so a bare top-level printf would run each time.
+
+post_install() {
+  printf '%s\n' \
+  "" \
+  "  adwaita-overlay is installed." \
+  "" \
+  "  To apply it to libadwaita apps (Nautilus, Settings, Text Editor, ...):" \
+  "      adwaita-overlay-install              # adds one marked @import line" \
+  "      adwaita-overlay-install --uninstall  # removes exactly that line" \
+  "  libadwaita ignores gtk-theme, so selecting the theme in Tweaks is neither" \
+  "  needed nor recommended." \
+  "" \
+  "  Flatpak apps additionally need:" \
+  "      flatpak override --user --filesystem=xdg-config/gtk-4.0" \
+  "" \
+  "  Only one tool can own ~/.config/gtk-4.0/gtk.css. If another theme, adw-" \
+  "  colors or Gradience is installed, uninstall it first."
+}
+
+post_upgrade() {
+  printf '%s\n' "" \
+  "  adwaita-overlay was upgraded. If you ran adwaita-overlay-install before," \
+  "  refresh your copy of the sheet (per user):" \
+  "      adwaita-overlay-install --update"
+}

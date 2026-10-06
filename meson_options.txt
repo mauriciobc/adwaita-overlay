@@ -1,0 +1,4 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+option('pacman_hook', type: 'boolean', value: false,
+       description: 'Install the pacman PostTransaction hook (Arch and derivatives)')

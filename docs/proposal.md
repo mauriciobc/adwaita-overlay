@@ -1,9 +1,16 @@
+<!--
+SPDX-FileCopyrightText: 2026 mauriciobc
+SPDX-License-Identifier: LGPL-2.1-or-later
+-->
 # Adwaita Visual Overhaul — Setup and Guidelines
 
 *Proposal of 18 Sep 2026, @Mauricio Barbosa e Castro. Local, versioned copy.
 Corrections accepted after the 18 Sep review are recorded in
 [Amendments](#amendments-accepted-18-sep-2026) — where an amendment and the
-body disagree, the amendment wins.*
+body disagree, the amendment wins. The premise underneath the body changed on
+6 Oct 2026 and is recorded in
+[Amendments accepted 6 Oct 2026](#amendments-accepted-6-oct-2026), which wins
+over both the body and the 18 Sep list.*
 
 This project adds bevelled borders, layered surface texture and depth to
 libadwaita on EndeavourOS/GNOME as an additive CSS overlay loaded at
@@ -98,6 +105,11 @@ touching system settings, so the full test matrix sits in one window.
 When you do rebuild, remember libadwaita reads user CSS at process startup
 only. `--gapplication-service` daemons such as Nautilus keep painting the
 old look until killed, so `tools/build` ends with a restart step.
+(Verified 6 Oct 2026, decisions.md H3: the startup-only part is right for
+the *file* — libadwaita exposes no monitor on `gtk.css`, only on its accent
+GSettings key. So the accent is live and colour-scheme is not, which is the
+asymmetry worth knowing: watch the accent change with an app open and it
+follows; edit `gtk.css` and it does not.)
 
 ## Stylesheet architecture
 
@@ -343,3 +355,73 @@ From the review of the original proposal; the scaffold implements these.
     `filesystem=xdg-config/gtk-4.0` override that had been granted was
     reverted, and the backlog's Flatpak tasks (P1.4, X1) are struck. When
     Flatpak returns to scope, re-apply the override and reinstate both.
+
+## Amendments accepted 6 Oct 2026
+
+The proposal's premise was **"personal use only, never redistributed"**, and
+two rows of the constraint table leaned on it: *no support burden* and *the
+cost of a break is one evening, not a user base*. Both are now false, and the
+tree has become a distributable artifact. What did **not** change is the
+architecture, and the distinction matters more now than it did then.
+
+### Superseded: the personal-use premise
+
+| was | now |
+| --- | --- |
+| "Personal use only, never redistributed" (header, constraint table) | Installable by anyone — `tools/install` |
+| "No support burden" | There is a user-facing install path, so there is a support surface |
+| "The cost of a break is one evening, not a user base" | There is a user base, which is why `tools/check-selectors` grew a **reverse** axis and why the accent register was measured rather than assumed |
+| "Never redistributed, nothing proposed upstream" (README) | Redistributable. Still nothing proposed upstream, and now for a second reason: see below |
+
+The rationale behind those rows is gone, so the rows themselves are struck
+rather than rewritten. Concretely, the rows that said undocumented selectors
+are acceptable because "the cost of a break is one evening" no longer hold:
+`upstream/selectors.txt` is now the difference between a reported line and a
+silently broken user's desktop.
+
+### Retained, and now load-bearing: not a fork
+
+**libadwaita is still never patched, replaced or rebuilt.** That was the
+proposal's central bet and it has only strengthened: selector survival
+measured at 99–100% per release (84% once, on the `@define-color` →
+custom-properties migration) while the *file layout* was rewritten twice.
+A fork binds to the unstable axis; the overlay binds to the stable one.
+
+What is new is that the bet is now **checked** rather than argued. Three
+things turned "we believe an overlay is safer" into a measurement:
+
+- `tools/check-selectors` — forward axis: does upstream still provide
+  everything the contracts register? Reverse axis: does the built sheet
+  depend on anything unregistered? (decisions.md H2)
+- `tools/probe-accent` — the accent register is measured live, 2/2 links
+  LIVE in both schemes, with a negative control that must read STALE and a
+  stock control that must exit 1. (decisions.md H3)
+- `tools/probe-foreign` — the reason the `--ov-up-*` fallback layer exists at
+  all: a Chromium window rendered `#ff000000` because an undefined `var()`
+  paints nothing and Chromium averages that into an opaque black frame.
+
+So the "not a fork" claim is no longer a statement of intent. It is a
+property the tooling fails the build over.
+
+### Also settled since the body was written
+
+- **The three fronts are now understood, and libadwaita's is the product.**
+  GTK4/libadwaita installs through a `@import` sidecar in
+  `~/.config/gtk-4.0/` because libadwaita ignores `gtk-theme` outright
+  (`AdwStyleManager` pins `Adwaita-empty`). 220 of the sheet's 242 built
+  selectors — 91% — are GTK4-only, so it cannot be retargeted at GTK3.
+  The GTK3 front is a real theme; the gnome-shell front does not exist and
+  would be a separate project (GNOME 50's shell links no GTK at all).
+- **The accent register moved from relative HSL to oklab.** HSL lightness
+  spread one rung across 0.132 of perceived lightness over the nine system
+  accents; an absolute oklab target spreads it across none, because upstream
+  already pins the sources into L 0.499–0.509. Blue-anchored, so the accent
+  that was tuned by eye does not move. (decisions.md H1)
+- **Open, and deliberately not decided here:** licensing. The tree has no
+  LICENSE and the body assumed redistribution never happened, so no grant
+  was ever needed or chosen. That is a decision for the maintainer, not a
+  consequence of the code, and it is not addressed above.
+- **Still open:** `upstream/gtk3/selectors.txt` and `variables.txt` do not
+  exist (G6), and `diff_contract` returns 0 on a missing contract file, so
+  the `contract OK against gtk3` line has been printing a vacuous pass. That
+  is a live bug in the guard, independent of everything above.

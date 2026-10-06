@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 """Generate the GTK3 theme "Adwaita-overlay": upstream Adwaita, recompiled
 with the GNOME accent.
 

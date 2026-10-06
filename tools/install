@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Install or remove the theme for a normal user.
+#
+#   tools/install              install
+#   tools/install --uninstall  remove
+#   tools/install --update     refresh the copied sheet after a package upgrade
+#   tools/install --dir DIR    use DIR instead of $XDG_CONFIG_HOME (testing)
+#
+# WHY THIS IS NOT A GTK THEME DIRECTORY
+#
+# libadwaita ignores `gtk-theme`. AdwStyleManager pins `Adwaita-empty` and
+# loads its own stylesheet at GTK_STYLE_PROVIDER_PRIORITY_THEME (200);
+# the only escape without patching the library is GTK_THEME in the
+# environment. So a theme at ~/.themes/Adwaita-overlay/gtk-4.0/, selected
+# with gsettings, does not reach libadwaita apps at all — that is exactly
+# what the AUR package `libadwaita-without-adwaita` patches out, and why
+# every libadwaita theme in the wild (Orchis, Colloid) installs by linking
+# into ~/.config/gtk-4.0/ instead.
+#
+# This installs that way, but without the two things that install does
+# badly:
+#
+#   - It never replaces ~/.config/gtk-4.0/gtk.css. That file belongs to the
+#     user; we append ONE marked line to it and remember the marker, so
+#     uninstall removes exactly that line and nothing else. (Orchis -l
+#     rm -rf's the file and the assets/ directory next to it.)
+#   - It never touches assets/. Our sheet has no external assets — the
+#     grain is an inline data: URI — so there is nothing to install and
+#     nothing of the user's to clobber.
+#
+# The sidecar is a plain file rather than a symlink into build/, so the
+# installed theme survives `build/` being wiped.
+#
+# The GTK3 half is a real theme and already installs as one:
+# tools/build-gtk3 --activate sets gtk-theme to Adwaita-overlay under
+# ~/.local/share/themes/.
+set -euo pipefail
+
+here="$(cd "$(dirname "$0")" && pwd)"
+
+sidecar_name="adwaita-overlay.css"
+# One line, self-identifying, so --uninstall is exact and so a user reading
+# their own gtk.css can see what is theirs and what is not.
+marker='@import url("adwaita-overlay.css");  /* adwaita-overlay: added by adwaita-overlay-install; safe to delete this line */'
+
+# Where the compiled sheet is, in whichever of the two shapes we are running
+# as. This is not cosmetic: the first version only looked in ../build/gtk.css,
+# which is right from tools/ in the source tree and wrong the moment the
+# package installs this script as /usr/bin/adwaita-overlay-install — it then
+# resolved "repo" to /usr and tried to copy /usr/build/gtk.css, so the
+# packaged install command failed outright. Caught by installing the package
+# and running the installed binary rather than the one in the tree.
+find_sheet() {
+  local c
+  for c in \
+      "${ADWAITA_OVERLAY_SHEET:-}" \
+      "$here/../build/gtk.css" \
+      "$here/../share/themes/Adwaita-overlay/gtk-4.0/gtk.css" \
+      "/usr/share/themes/Adwaita-overlay/gtk-4.0/gtk.css" \
+      "/usr/local/share/themes/Adwaita-overlay/gtk-4.0/gtk.css"
+  do
+    if [[ -n "$c" && -f "$c" ]]; then
+      printf '%s\n' "$c"
+      return 0
+    fi
+  done
+  return 1
+}
+
+mode=install
+confroot=""
+# A while loop, not `for arg in "$@"`: shift inside a for over "$@" does not
+# advance the positional parameters, so `--dir X` swallowed the next word
+# and fell through to the usage error.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --uninstall) mode=uninstall ;;
+    --update) mode=update ;;
+    --dir) shift; confroot="${1:-}" ;;
+    # basename, not "tools/install": this file is installed as
+    # adwaita-overlay-install, and usage text should name the command the
+    # user actually typed.
+    -h|--help) sed -n '2,/^set -euo/{/SPDX-/d;/^set -euo/d;p}' "$0" | sed 's/^# \{0,1\}//' \
+                 | sed "s/^  tools\/install/  $(basename "$0")/"; exit 0 ;;
+    *) echo "usage: $(basename "$0") [--uninstall|--update] [--dir DIR]" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+confdir="${confroot:-${XDG_CONFIG_HOME:-$HOME/.config}}/gtk-4.0"
+gtkcss="$confdir/gtk.css"
+sidecar="$confdir/$sidecar_name"
+
+if [[ -L "$gtkcss" ]]; then
+  echo "error: $gtkcss is a symlink (the development install from tools/build)." >&2
+  echo "       Remove it first — this installer writes a real file so it" >&2
+  echo "       can own exactly one line of it:" >&2
+  echo "         rm $gtkcss && tools/build --no-restart   # keep using the dev build" >&2
+  echo "         rm $gtkcss && tools/install              # install the packaged copy" >&2
+  exit 1
+fi
+
+have_marker() { [[ -f "$gtkcss" ]] && grep -qF 'adwaita-overlay.css' "$gtkcss"; }
+
+case "$mode" in
+install)
+  if ! sheet="$(find_sheet)"; then
+    echo "error: cannot find the compiled sheet (gtk.css)." >&2
+    echo "       Looked in ./build/, ../share/themes/Adwaita-overlay/gtk-4.0/," >&2
+    echo "       /usr/share/themes/... . Set ADWAITA_OVERLAY_SHEET to override." >&2
+    exit 1
+  fi
+  if have_marker; then
+    echo "already installed: $gtkcss imports $sidecar_name"
+    if ! cmp -s "$sheet" "$sidecar"; then
+      echo "out of date: $sidecar differs from $sheet"
+      echo "             run: $(basename "$0") --update"
+    fi
+  else
+    mkdir -p "$confdir"
+    cp "$sheet" "$sidecar"
+    # A CSS @import must precede every rule; putting ours first is both
+    # valid and the right precedence, leaving the user's own rules after it
+    # to override ours.
+    { printf '/* adwaita-overlay — GTK4/libadwaita material overlay. */\n%s\n' "$marker"
+      [[ -f "$gtkcss" ]] && cat "$gtkcss"
+    } > "$gtkcss.tmp"
+    mv "$gtkcss.tmp" "$gtkcss"
+    echo "installed: $sidecar from $sheet ($(wc -c < "$sidecar") bytes)"
+    echo "            $gtkcss imports it (line 2)"
+    [[ -f "$confdir/assets" ]] && echo "note: assets/ left untouched"
+  fi
+  cat <<'EOF'
+
+Applies to libadwaita apps and to plain GTK4 apps that never call
+adw_init(). Existing apps must be restarted to re-read the sheet — the one
+exception is the system accent colour, which libadwaita follows live.
+EOF
+  ;;
+
+uninstall)
+  if ! have_marker; then
+    echo "nothing to do: $gtkcss does not import $sidecar_name"
+  else
+    # Drop the header comment and the marked line; keep everything else,
+    # byte for byte. Rewritten atomically via a temp file in the same dir.
+    awk '/^\/\* adwaita-overlay — GTK4\/libadwaita material overlay\. \*\/$/ {next}
+         /adwaita-overlay\.css/ {next}
+         {print}' "$gtkcss" > "$gtkcss.tmp"
+    mv "$gtkcss.tmp" "$gtkcss"
+    rm -f "$sidecar"
+    echo "removed: the $marker line from $gtkcss"
+    echo "         and $sidecar"
+    echo "restart any running apps to drop the theme"
+  fi
+  ;;
+
+update)
+  have_marker || { echo "error: not installed ($gtkcss does not import $sidecar_name); run $(basename "$0") first" >&2; exit 1; }
+  sheet="$(find_sheet)" || { echo "error: cannot find the compiled sheet (gtk.css)" >&2; exit 1; }
+  if cmp -s "$sheet" "$sidecar"; then
+    echo "up to date: $sidecar"
+  else
+    cp "$sheet" "$sidecar.tmp" && mv "$sidecar.tmp" "$sidecar"
+    echo "updated: $sidecar from $sheet ($(wc -c < "$sidecar") bytes)"
+    echo "restart running apps to re-read it"
+  fi
+  ;;
+esac

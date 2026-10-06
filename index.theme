@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+[X-GNOME-Metatheme]
+Name=Adwaita Overlay
+Comment=Bevelled edges, layered texture and depth, added on top of Adwaita
+Encoding=UTF-8
+Type=X-GNOME-Metatheme
+
+[X-GNOME-Metatheme]
+GtkTheme=Adwaita-overlay

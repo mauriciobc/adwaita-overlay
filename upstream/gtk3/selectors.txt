@@ -1,0 +1,461 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#
+#
+# The GTK3 selector contract. One selector atom per line, sorted.
+#
+# NOT all 2001 atoms of GTK3's Adwaita — the front is a recompile of that
+# sheet, not an override of it, so there is nothing hand-written to list. What
+# is worth watching is the surface tools/build-gtk3 MODIFIES: the declarations
+# whose value is the accent, and which therefore stop tracking the system
+# accent if the atom that carries them disappears. That set is exactly what
+# tools/gtk3-accent-sites enumerates (373 declarations, 434 distinct atoms,
+# light + dark), and it is what is listed here.
+#
+# The failure this catches is the quiet one: GTK removes or renames a
+# selector, build-gtk3's substitution table no longer matches, and one widget
+# silently keeps #3584e4 baked in while every other widget follows the system
+# accent. Nothing crashes; one control is just permanently the wrong colour.
+#
+# Generated from: tools/gtk3-accent-sites | cut -f2 | tr , '\n' | sort -u
+# Regenerate and re-read the header when the pin moves (BACKLOG G6).
+# Rules:
+#   - update this file and the pinned tag in the same commit
+#   - entries are ATOMS as the extraction heuristic sees them, so they match
+#     upstream/selectors.txt in style and compare against the same set
+#   - "@define-color" is excluded: it is a colour definition line that
+*
+:backdrop .entry-tag
+button:active:link
+button:active:visited
+button:backdrop:link
+button:backdrop:visited
+button:disabled:link
+button:disabled:visited
+button.emoji-section:checked
+button:hover:link
+button:hover:visited
+button:link
+button:link > label
+button:link > label:active
+button:link > label:backdrop
+button:link > label:disabled
+button:link > label:hover
+button:link > label:selected
+button:link > label:visited
+button:selected:link
+button:selected:visited
+button.suggested-action
+button.suggested-action:active
+button.suggested-action:backdrop
+button.suggested-action:backdrop:active
+button.suggested-action:backdrop:checked
+button.suggested-action:backdrop:disabled:active
+button.suggested-action:backdrop:disabled:checked
+button.suggested-action:checked
+button.suggested-action:disabled:active
+button.suggested-action:disabled:checked
+button.suggested-action.flat
+button.suggested-action.flat:backdrop
+button.suggested-action.flat:backdrop:active
+button.suggested-action.flat:backdrop:checked
+button.suggested-action.flat:backdrop:disabled
+button.suggested-action.flat:backdrop:disabled:active
+button.suggested-action.flat:backdrop:disabled:checked
+button.suggested-action.flat:disabled
+button.suggested-action:hover
+button:visited
+button:visited > label
+button:visited > label:active
+button:visited > label:backdrop
+button:visited > label:disabled
+button:visited > label:hover
+button:visited > label:selected
+button:visited > label:visited
+calendar:backdrop:disabled:selected
+calendar:disabled:selected
+calendar:selected
+check:checked
+check:checked:backdrop
+check:checked:hover
+check:indeterminate
+check:indeterminate:backdrop
+check:indeterminate:hover
+.content-view:not(list) check
+.content-view:not(list) check:active
+.content-view:not(list) check:backdrop
+.content-view:not(list) check:backdrop:checked
+.content-view:not(list) check:checked
+.content-view:not(list) check:checked:active
+.content-view:not(list) check:checked:hover
+.content-view:not(list) check:hover
+.content-view .rubberband
+.content-view rubberband
+.content-view .tile:active
+.content-view .tile:selected
+.context-menu menuitem:hover
+entry
+entry:focus
+entry image:active
+entry progress
+entry selection
+entry selection:backdrop:disabled
+entry selection:disabled
+.entry-tag
+.entry-tag:hover
+flowbox flowboxchild:backdrop:disabled:selected
+flowbox flowboxchild:disabled:selected
+flowbox flowboxchild:selected
+flowbox rubberband
+.gtkstyle-fallback:selected
+headerbar.selection-mode
+headerbar.selection-mode:backdrop
+headerbar.selection-mode button
+headerbar.selection-mode button:active
+headerbar.selection-mode button:backdrop
+headerbar.selection-mode button:backdrop:active
+headerbar.selection-mode button:backdrop:checked
+headerbar.selection-mode button:backdrop:disabled
+headerbar.selection-mode button:backdrop:disabled:active
+headerbar.selection-mode button:backdrop:disabled:checked
+headerbar.selection-mode button:backdrop.flat
+headerbar.selection-mode button:backdrop.flat:active
+headerbar.selection-mode button:backdrop.flat:checked
+headerbar.selection-mode button:backdrop.flat:disabled
+headerbar.selection-mode button:checked
+headerbar.selection-mode button:disabled
+headerbar.selection-mode button:disabled:active
+headerbar.selection-mode button:disabled:checked
+headerbar.selection-mode button:hover
+headerbar.selection-mode button.suggested-action
+headerbar.selection-mode button.suggested-action:active
+headerbar.selection-mode button.suggested-action:backdrop
+headerbar.selection-mode button.suggested-action:backdrop:disabled
+headerbar.selection-mode button.suggested-action:disabled
+headerbar.selection-mode button.suggested-action:hover
+headerbar.selection-mode button.titlebutton
+headerbar.selection-mode button.toggle:active
+headerbar.selection-mode button.toggle:checked
+headerbar.selection-mode .selection-menu
+headerbar.selection-mode .selection-menu:backdrop
+headerbar.selection-mode .subtitle:link
+iconview:backdrop:disabled:selected
+iconview.content-view.check:active:not(list)
+iconview.content-view.check:backdrop:checked:not(list)
+iconview.content-view.check:backdrop:not(list)
+iconview.content-view.check:checked:active:not(list)
+iconview.content-view.check:checked:hover:not(list)
+iconview.content-view.check:checked:not(list)
+iconview.content-view.check:hover:not(list)
+iconview.content-view.check:not(list)
+iconview:disabled:selected
+iconview:disabled:selected:focus
+iconview:selected
+iconview:selected:focus
+iconview text selection
+iconview text selection:backdrop:disabled
+iconview text selection:disabled
+iconview text selection:disabled:focus
+iconview text selection:focus
+infobar.action:hover > revealer > box
+infobar.error:backdrop > revealer > box
+infobar.error *:link
+infobar.error > revealer > box
+infobar.info:backdrop > revealer > box
+infobar.info *:link
+infobar.info > revealer > box
+infobar.question:backdrop > revealer > box
+infobar.question *:link
+infobar.question > revealer > box
+infobar.warning:backdrop > revealer > box
+infobar.warning *:link
+infobar.warning > revealer > box
+@keyframes needs_attention
+label:backdrop:disabled:selected
+label:backdrop selection:disabled
+label:disabled:selected
+label:disabled selection
+label selection
+levelbar block.high
+levelbar block.high:backdrop
+levelbar block:not(.empty)
+levelbar block:not(.empty):backdrop
+levelbar trough
+*:link
+*:link:active
+*:link:backdrop
+*:link:backdrop:backdrop:hover
+*:link:backdrop:backdrop:hover:selected
+*:link:disabled
+*:link:disabled:backdrop
+.linked:not(.vertical) > entry:focus + button
+.linked:not(.vertical) > entry:focus + combobox > box > button.combo
+.linked:not(.vertical) > entry:focus + entry
+.linked:not(.vertical) > entry:focus + spinbutton:not(.vertical)
+.linked:not(.vertical) > spinbutton:focus:not(.vertical) + button
+.linked:not(.vertical) > spinbutton:focus:not(.vertical) + combobox > box > button.combo
+.linked:not(.vertical) > spinbutton:focus:not(.vertical) + entry
+.linked:not(.vertical) > spinbutton:focus:not(.vertical) + spinbutton:not(.vertical)
+.linked.vertical > entry + entry:focus:not(:only-child)
+.linked.vertical > entry:focus:not(:only-child) + button
+.linked.vertical > entry:focus:not(:only-child) + combobox > box > button.combo
+.linked.vertical > entry:focus:not(:only-child) + entry
+.linked.vertical > entry:focus:not(:only-child) + spinbutton:not(.vertical)
+.linked.vertical > entry + spinbutton:focus:not(:only-child):not(.vertical)
+.linked.vertical > spinbutton:focus:not(:only-child):not(.vertical) + button
+.linked.vertical > spinbutton:focus:not(:only-child):not(.vertical) + combobox > box > button.combo
+.linked.vertical > spinbutton:focus:not(:only-child):not(.vertical) + entry
+.linked.vertical > spinbutton:focus:not(:only-child):not(.vertical) + spinbutton:not(.vertical)
+.linked.vertical > spinbutton:not(.vertical) + entry:focus:not(:only-child)
+.linked.vertical > spinbutton:not(.vertical) + spinbutton:focus:not(:only-child):not(.vertical)
+*:link:hover
+*:link:selected
+*:link:visited
+.menubar > menuitem:hover
+menubar > menuitem:hover
+.menuitem.button.flat:backdrop:disabled:selected
+.menuitem.button.flat:disabled:selected
+.menuitem.button.flat:selected
+.menu menuitem:hover
+menu menuitem:hover
+modelbutton.flat:backdrop:disabled:selected
+modelbutton.flat:disabled:selected
+modelbutton.flat:selected
+:not(:backdrop) .entry-tag.button:active
+:not(:backdrop) .entry-tag.button:hover
+notebook > header.bottom > tabs > tab:checked
+notebook > header.left > tabs > tab:checked
+notebook > header.right > tabs > tab:checked
+notebook > header.top > tabs > tab:checked
+.osd button.suggested-action
+.osd button.suggested-action:active
+.osd button.suggested-action:active:backdrop
+.osd button.suggested-action:backdrop
+.osd button.suggested-action:checked
+.osd button.suggested-action:checked:backdrop
+.osd button.suggested-action:hover
+.osd entry:focus
+.osd spinbutton:focus:not(.vertical)
+paned > separator:selected
+placessidebar row.sidebar-new-bookmark-row
+popover.emoji-picker .emoji :hover
+progressbar progress
+progressbar progress:backdrop
+progressbar row:selected progress
+progressbar row:selected trough
+radio:checked
+radio:checked:backdrop
+radio:checked:hover
+radio:indeterminate
+radio:indeterminate:backdrop
+radio:indeterminate:hover
+row.activatable:selected:backdrop
+row.activatable:selected.has-open-popup
+row.activatable:selected:hover
+row:backdrop:disabled:selected
+row:disabled:selected
+row:selected
+row:selected button
+row:selected check
+row:selected progressbar progress
+row:selected progressbar trough
+row:selected radio
+row:selected scale fill
+row:selected scale highlight
+row:selected scale slider
+row:selected scale slider:disabled
+row:selected scale trough
+row:selected switch
+row:selected switch:backdrop
+row:selected switch > slider
+row:selected switch > slider:checked
+.rubberband
+rubberband
+scale highlight
+scale highlight:backdrop
+scale row:selected fill
+scale row:selected highlight
+scale row:selected trough
+scale slider:active
+scrollbar button:active
+scrollbar button:checked
+scrollbar slider:hover:active
+*:selected button:active:link
+*:selected button:active:visited
+*:selected button:hover:link
+*:selected button:hover:visited
+*:selected button:link
+*:selected button:link > label
+*:selected button:link > label:active
+*:selected button:link > label:hover
+*:selected button:link > label:visited
+*:selected button:visited
+*:selected button:visited > label
+*:selected button:visited > label:active
+*:selected button:visited > label:hover
+*:selected button:visited > label:visited
+*:selected *:link
+*:selected *:link:active
+*:selected *:link:hover
+*:selected *:link:visited
+.selection-mode button.titlebutton:backdrop:disabled
+.selection-mode button.titlebutton:disabled
+.selection-mode headerbar
+.selection-mode headerbar:backdrop
+.selection-mode headerbar button
+.selection-mode headerbar button:active
+.selection-mode headerbar button:backdrop
+.selection-mode headerbar button:backdrop:active
+.selection-mode headerbar button:backdrop:checked
+.selection-mode headerbar button:backdrop:disabled
+.selection-mode headerbar button:backdrop:disabled:active
+.selection-mode headerbar button:backdrop:disabled:checked
+.selection-mode headerbar button:backdrop.flat
+.selection-mode headerbar button:backdrop.flat:active
+.selection-mode headerbar button:backdrop.flat:checked
+.selection-mode headerbar button:backdrop.flat:disabled
+.selection-mode headerbar button:checked
+.selection-mode headerbar button:disabled
+.selection-mode headerbar button:disabled:active
+.selection-mode headerbar button:disabled:checked
+.selection-mode headerbar button:hover
+.selection-mode headerbar button.suggested-action
+.selection-mode headerbar button.suggested-action:active
+.selection-mode headerbar button.suggested-action:backdrop
+.selection-mode headerbar button.suggested-action:backdrop:disabled
+.selection-mode headerbar button.suggested-action:disabled
+.selection-mode headerbar button.suggested-action:hover
+.selection-mode headerbar button.titlebutton
+.selection-mode headerbar button.toggle:active
+.selection-mode headerbar button.toggle:checked
+.selection-mode headerbar .selection-menu
+.selection-mode headerbar .selection-menu:backdrop
+.selection-mode headerbar .subtitle:link
+.selection-mode separator.sidebar
+.selection-mode .titlebar:backdrop:not(headerbar)
+.selection-mode.titlebar:backdrop:not(headerbar)
+.selection-mode .titlebar button.titlebutton
+.selection-mode .titlebar:not(headerbar)
+.selection-mode.titlebar:not(headerbar)
+.selection-mode .titlebar:not(headerbar) button
+.selection-mode.titlebar:not(headerbar) button
+.selection-mode .titlebar:not(headerbar) button:active
+.selection-mode.titlebar:not(headerbar) button:active
+.selection-mode .titlebar:not(headerbar) button:backdrop
+.selection-mode.titlebar:not(headerbar) button:backdrop
+.selection-mode .titlebar:not(headerbar) button:backdrop:active
+.selection-mode.titlebar:not(headerbar) button:backdrop:active
+.selection-mode .titlebar:not(headerbar) button:backdrop:checked
+.selection-mode.titlebar:not(headerbar) button:backdrop:checked
+.selection-mode .titlebar:not(headerbar) button:backdrop:disabled
+.selection-mode.titlebar:not(headerbar) button:backdrop:disabled
+.selection-mode .titlebar:not(headerbar) button:backdrop:disabled:active
+.selection-mode.titlebar:not(headerbar) button:backdrop:disabled:active
+.selection-mode .titlebar:not(headerbar) button:backdrop:disabled:checked
+.selection-mode.titlebar:not(headerbar) button:backdrop:disabled:checked
+.selection-mode .titlebar:not(headerbar) button:checked
+.selection-mode.titlebar:not(headerbar) button:checked
+.selection-mode .titlebar:not(headerbar) button:disabled
+.selection-mode.titlebar:not(headerbar) button:disabled
+.selection-mode .titlebar:not(headerbar) button:disabled:active
+.selection-mode.titlebar:not(headerbar) button:disabled:active
+.selection-mode .titlebar:not(headerbar) button:disabled:checked
+.selection-mode.titlebar:not(headerbar) button:disabled:checked
+.selection-mode .titlebar:not(headerbar) button:hover
+.selection-mode.titlebar:not(headerbar) button:hover
+.selection-mode .titlebar:not(headerbar) button.suggested-action
+.selection-mode.titlebar:not(headerbar) button.suggested-action
+.selection-mode .titlebar:not(headerbar) button.suggested-action:active
+.selection-mode.titlebar:not(headerbar) button.suggested-action:active
+.selection-mode .titlebar:not(headerbar) button.suggested-action:backdrop
+.selection-mode.titlebar:not(headerbar) button.suggested-action:backdrop
+.selection-mode .titlebar:not(headerbar) button.suggested-action:backdrop:disabled
+.selection-mode.titlebar:not(headerbar) button.suggested-action:backdrop:disabled
+.selection-mode .titlebar:not(headerbar) button.suggested-action:disabled
+.selection-mode.titlebar:not(headerbar) button.suggested-action:disabled
+.selection-mode .titlebar:not(headerbar) button.suggested-action:hover
+.selection-mode.titlebar:not(headerbar) button.suggested-action:hover
+.selection-mode .titlebar:not(headerbar) .selection-menu
+.selection-mode.titlebar:not(headerbar) .selection-menu
+.selection-mode .titlebar:not(headerbar) .subtitle:link
+.selection-mode.titlebar:not(headerbar) .subtitle:link
+separator.sidebar.selection-mode
+spinbutton:focus:not(.vertical)
+spinbutton:not(.vertical)
+spinbutton:not(.vertical) image:active
+spinbutton:not(.vertical) progress
+spinbutton:not(.vertical) selection
+spinbutton:not(.vertical) selection:backdrop:disabled
+spinbutton:not(.vertical) selection:disabled
+stacksidebar row.needs-attention > label
+.stack-switcher > button.needs-attention > image
+.stack-switcher > button.needs-attention > label
+switch:backdrop:checked
+switch:backdrop:checked > slider
+switch:checked
+switch:checked > slider
+textview text:backdrop:disabled:selected
+textview text:disabled:selected
+textview text:disabled:selected:focus
+textview text:selected
+textview text:selected:focus
+textview text selection
+textview text selection:backdrop:disabled
+textview text selection:disabled
+textview text selection:disabled:focus
+textview text selection:focus
+.titlebar.selection-mode button.titlebutton
+to
+treeview entry.flat:focus
+treeview entry:focus
+treeview.view acceleditor > label
+treeview.view button.dnd
+treeview.view button.dnd:active
+treeview.view button.dnd:hover
+treeview.view button.dnd:selected
+treeview.view check:selected
+treeview.view check:selected:focus
+treeview.view:disabled:selected
+treeview.view:disabled:selected:backdrop
+treeview.view:drop(active)
+treeview.view.expander:selected
+treeview.view.expander:selected:backdrop
+treeview.view header.button.dnd
+treeview.view header.button.dnd:active
+treeview.view header.button.dnd:hover
+treeview.view header.button.dnd:selected
+treeview.view.progressbar
+treeview.view.progressbar:selected
+treeview.view.progressbar:selected:backdrop
+treeview.view.progressbar:selected:focus
+treeview.view.progressbar:selected:focus:backdrop
+treeview.view radio:selected
+treeview.view radio:selected:focus
+treeview.view rubberband
+treeview.view:selected
+treeview.view:selected:backdrop
+treeview.view:selected:focus
+treeview.view.trough:selected
+treeview.view.trough:selected:focus
+.view:backdrop:disabled:selected
+.view.content-view.check:active:not(list)
+.view.content-view.check:backdrop:checked:not(list)
+.view.content-view.check:backdrop:not(list)
+.view.content-view.check:checked:active:not(list)
+.view.content-view.check:checked:hover:not(list)
+.view.content-view.check:checked:not(list)
+.view.content-view.check:hover:not(list)
+.view.content-view.check:not(list)
+.view:disabled:selected
+.view:selected
+.view:selected:focus
+.view text:backdrop:disabled:selected
+.view text:disabled:selected
+.view text:selected
+.view text:selected:focus
+.view text selection
+.view text selection:backdrop:disabled
+.view text selection:disabled
+.view text selection:focus
+window.devel headerbar.titlebar:not(.selection-mode)

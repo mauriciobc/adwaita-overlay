@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
 # Diff the upgrade contracts against upstream stylesheets.
 #
 #   libadwaita  upstream/selectors.txt + upstream/variables.txt
@@ -7,32 +9,96 @@
 #               (variables = @define-color names — GTK3 has no custom
 #               properties), against GTK3's built-in Adwaita, light + dark
 #
-# Usage: tools/check-selectors                  both, *installed*
+# Usage: tools/check-selectors                  libadwaita (installed) + reverse
 #        tools/check-selectors <version>        libadwaita, archived copy
-#        tools/check-selectors --gtk3           gtk3, installed
-#        tools/check-selectors --gtk3 <version> gtk3, archived copy
+#        tools/check-selectors --gtk3           gtk3, installed (dev only)
+#        tools/check-selectors --gtk3 <version> gtk3, archived copy (dev only)
+#        tools/check-selectors --reverse        reverse axis only
+#        tools/check-selectors --sheet PATH ... check this built sheet in the
+#                                               reverse axis (any mode)
+#
+# Two layouts, picked by what sits next to this script. Source tree:
+# <repo>/tools/, contracts in <repo>/upstream/. Installed: <libexecdir>/
+# adwaita-overlay/, contracts in ./contracts/ (no gtk3, no archive fetch).
 #
 # No version: read the installed .so files. This is what the pacman hook
 # runs: no network, nothing ever written into the repo (safe as root,
 # PostTransaction). With a version: check upstream/cache/, fetching first
-# if needed (network).
+# if needed (network; source tree only).
 #
-# Exit status: 1 if any contract entry is missing from the sheet.
+# Three axes, and the third runs in the other direction:
+#
+#   FORWARD  libadwaita / gtk3 — does upstream still PROVIDE everything the
+#            contract registers? This is the axis the pacman hook cares
+#            about: it is what catches an upgrade.
+#
+#   REVERSE  does the sheet actually DEPEND on anything unregistered?
+#            Checked against the built build/gtk.css: every non---ov- var()
+#            it reads must be in variables.txt, and every --ov-* it declares
+#            must be read somewhere (a declared-but-unread token is a
+#            leftover, not a dependency).
+#
+# The reverse axis is skipped, loudly, when there is no built sheet to read
+# (source tree: build/gtk.css; installed: pass --sheet PATH). It is never
+# *built* here: the hook runs this as root, and sassc would leave
+# root-owned files in the user's gitignored build/. Run tools/build first.
+#
+# The reverse axis deliberately does NOT cover selectors, and that is the
+# contract's own rule rather than a gap. upstream/selectors.txt registers
+# "the ATOMS UPSTREAM USES for anything the overlay overrides - not
+# necessarily the atoms the overlay itself writes", so .content-pane, window
+# and dialog are unregistered ON PURPOSE (see the header of that file).
+# Inverting the selector contract would flag every compound the overlay
+# composes in SCSS plus every GTK-core node name. The variable axis is the
+# one that inverts cleanly: L0 is the only layer that may read an upstream
+# property, and each one is read through exactly one --ov-up-* alias.
+#
+# Exit status: 1 if any contract entry is missing from the sheet, or if the
+# reverse axis finds an unregistered dependency.
 # A missing selector or variable is cosmetic — never block a system
 # upgrade on this (hence AbortOnFail = No in the hook).
 set -euo pipefail
 
-repo="$(cd "$(dirname "$0")/.." && pwd)"
+here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=tools/_lib.sh
-. "$repo/tools/_lib.sh"
+. "$here/_lib.sh"
+if [[ -d "$here/contracts" ]]; then           # installed: <libexecdir>/adwaita-overlay/
+  source_tree=0; repo=""; contracts="$here/contracts"; default_sheet=""
+else                                           # source tree: <repo>/tools/
+  source_tree=1; repo="$(cd "$here/.." && pwd)"; contracts="$repo/upstream"
+  default_sheet="$repo/build/gtk.css"
+fi
+need_tree() {
+  (( source_tree )) || { echo "error: this check needs a source checkout (it fetches/reads upstream/cache)" >&2; exit 2; }
+}
+sheet=""; args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sheet) [[ -n "${2:-}" ]] || { echo "usage: --sheet PATH" >&2; exit 2; }; sheet="$2"; shift 2 ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- ${args[@]+"${args[@]}"}
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 # diff_contract <contract file> <extracted set> <heading>
+# A MISSING or empty contract is no longer a silent pass. Until this was
+# noticed (6 Oct 2026) the early return below made `contract OK against
+# gtk3` print green while checking nothing at all — upstream/gtk3/
+# selectors.txt and variables.txt were never written (BACKLOG G6), so the
+# second half of the guard had been reporting success for weeks.
+#
+# It warns and returns 0 rather than failing: an absent contract is not an
+# upstream break, and this tool must never block a system upgrade. But it
+# says so, so "OK" can no longer mean "nothing to check".
 diff_contract() {
   local contract="$1" have="$2" heading="$3" missing
-  [[ -s "$contract" ]] || return 0
+  if [[ ! -s "$contract" ]]; then
+    echo "CONTRACT NOT WRITTEN: ${contract#"$contracts"/} — nothing checked for this axis"
+    return 0
+  fi
   missing="$(comm -23 <(grep -vE '^(#|$)' "$contract" | sort -u) "$have" || true)"
   if [[ -n "$missing" ]]; then
     echo "$heading"
@@ -44,6 +110,7 @@ diff_contract() {
 check_libadwaita() {
   local css label status=0
   if [[ $# -gt 0 ]]; then
+    need_tree
     if [[ ! -s "$repo/upstream/cache/$1/gtk.css" ]]; then
       "$repo/tools/fetch-upstream" "$1" >/dev/null
     fi
@@ -62,9 +129,9 @@ check_libadwaita() {
 
   extract_selectors "$css" > "$tmp/adw-selectors.txt"
   extract_variables "$css" > "$tmp/adw-variables.txt"
-  diff_contract "$repo/upstream/selectors.txt" "$tmp/adw-selectors.txt" \
+  diff_contract "$contracts/selectors.txt" "$tmp/adw-selectors.txt" \
     "MISSING SELECTORS against libadwaita $label:" || status=1
-  diff_contract "$repo/upstream/variables.txt" "$tmp/adw-variables.txt" \
+  diff_contract "$contracts/variables.txt" "$tmp/adw-variables.txt" \
     "MISSING VARIABLES against libadwaita $label:" || status=1
   [[ $status -eq 0 ]] && echo "contract OK against libadwaita $label"
   return $status
@@ -72,7 +139,8 @@ check_libadwaita() {
 
 check_gtk3() {
   local css label status=0 pinned
-  pinned="$(cat "$repo/upstream/gtk3/pinned-version")"
+  need_tree
+  pinned="$(cat "$contracts/gtk3/pinned-version")"
   if [[ $# -gt 0 ]]; then
     if [[ ! -s "$repo/upstream/cache/gtk3/$1/gtk.css" ]]; then
       "$repo/tools/fetch-upstream" --gtk3 "$1" >/dev/null
@@ -101,7 +169,7 @@ check_gtk3() {
     fi
     # Same for libhandy, whose Adwaita sheets the generated theme restates.
     local hpin hso="/usr/lib/libhandy-1.so.0" v
-    hpin="$(cat "$repo/upstream/libhandy/pinned-version")"
+    hpin="$(cat "$contracts/libhandy/pinned-version")"
     if [[ -e "$hso" && -d "$repo/upstream/cache/libhandy/$hpin/themes" ]]; then
       for v in Adwaita Adwaita-dark; do
         if ! cmp -s <(gresource extract "$hso" "/sm/puri/handy/themes/$v.css") \
@@ -116,22 +184,70 @@ check_gtk3() {
 
   extract_selectors "$css" > "$tmp/gtk3-selectors.txt"
   extract_named_colors "$css" > "$tmp/gtk3-variables.txt"
-  diff_contract "$repo/upstream/gtk3/selectors.txt" "$tmp/gtk3-selectors.txt" \
+  diff_contract "$contracts/gtk3/selectors.txt" "$tmp/gtk3-selectors.txt" \
     "MISSING SELECTORS against gtk3 $label:" || status=1
-  diff_contract "$repo/upstream/gtk3/variables.txt" "$tmp/gtk3-variables.txt" \
+  diff_contract "$contracts/gtk3/variables.txt" "$tmp/gtk3-variables.txt" \
     "MISSING NAMED COLORS against gtk3 $label:" || status=1
   [[ $status -eq 0 ]] && echo "contract OK against gtk3 $label"
   return $status
 }
 
+# check_reverse — the axis that runs src/ -> contract instead of
+# contract -> upstream. Reads the BUILT sheet, so it sees what the overlay
+# actually does rather than what it intends to.
+check_reverse() {
+  local built="${sheet:-$default_sheet}" status=0
+  if [[ -z "$built" || ! -s "$built" ]]; then
+    echo "reverse SKIPPED: no built sheet (pass --sheet PATH)"
+    return 0
+  fi
+
+  # Every upstream property the sheet reads must be registered. Filter out
+  # --ov-* first: those are ours, and their being declared is the point.
+  # sort and comm both run at the default collation, like diff_contract above
+  # — mixing LC_ALL=C sort with a locale comm makes comm reject the input.
+  local unread registered dead
+  unread="$(comm -23 \
+    <(extract_var_refs "$built" | grep -v '^--ov-' | sort -u) \
+    <(grep -vE '^(#|$)' "$contracts/variables.txt" | sort -u) || true)"
+  if [[ -n "$unread" ]]; then
+    echo "UNREGISTERED UPSTREAM VARIABLES read by the built sheet:"
+    echo "$unread" | sed 's/^/  /'
+    echo "  -> read it through one --ov-up-* alias in src/_tokens.scss and"
+    echo "     add it to upstream/variables.txt, in the same commit"
+    status=1
+  fi
+
+  # A token nothing reads is a leftover, not a dependency: it survives an
+  # upstream rename silently while looking like coverage.
+  registered="$(extract_declared_props "$built" | sort -u)"
+  dead="$(comm -23 \
+    <(printf '%s\n' "$registered") \
+    <(extract_var_refs "$built" | sort -u) | grep -v '^$' || true)"
+  if [[ -n "$dead" ]]; then
+    echo "DEAD --ov-* TOKENS (declared, never read):"
+    echo "$dead" | sed 's/^/  /'
+    status=1
+  fi
+
+  if [[ $status -eq 0 ]]; then
+    echo "reverse OK: every upstream variable the sheet reads is registered,"\
+         "no dead --ov-* tokens ($(printf '%s\n' "$registered" | grep -c .) tokens)"
+  fi
+  return $status
+}
+
 status=0
-if [[ "${1:-}" == "--gtk3" ]]; then
+if [[ "${1:-}" == "--reverse" ]]; then
+  check_reverse || status=1
+elif [[ "${1:-}" == "--gtk3" ]]; then
   shift
   check_gtk3 "$@" || status=1
 elif [[ $# -gt 0 ]]; then
   check_libadwaita "$1" || status=1
+  check_reverse || status=1
 else
   check_libadwaita || status=1
-  check_gtk3 || status=1
+  check_reverse || status=1
 fi
 exit $status

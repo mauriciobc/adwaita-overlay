@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 mauriciobc
+// SPDX-License-Identifier: LGPL-2.1-or-later
 // adwaita-overlay — additive material layer over libadwaita.
 // Loaded at GTK_STYLE_PROVIDER_PRIORITY_USER (800) over libadwaita's
 // stylesheet at PRIORITY_THEME (200). Import order below is readability
@@ -31,6 +33,11 @@
 @import "surfaces/expander";
 @import "surfaces/calendar";
 @import "surfaces/sheet";
+
+// The user layer — personal overrides, last word, empty by default. Not a
+// theme fork: the escape hatch for one machine's taste, where the built
+// sheet is checked by the same contract reverse axis as everything above.
+@import "user";
 
 // L3 — contrast reverts are emitted inline by the L1 mixins, not by a
 // separate block, so no material rule can ever drift from its revert.

@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2026 mauriciobc
+SPDX-License-Identifier: LGPL-2.1-or-later
+-->
 # Decisions — adwaita-overlay
 
 Running decision record. Each entry names the evidence that produced it.
@@ -2229,3 +2233,432 @@ CSS still wins. `tools/build-gtk3` writes `build/gtk3-theme/gtk-3.0/`
 check, progress, scale, selected row, entry selection, HdyViewSwitcher):
 numbers in BACKLOG G3. The drift guard now covers libhandy as well, and the
 hook triggers on `libhandy`.
+
+## H1: The accent register moved to oklab — 6 Oct 2026
+
+**Problem.** 404d995 moved `--ov-lit-edge-*` off `color-mix()` onto relative
+HSL, so the pen's own stops became reachable. That part stands — but HSL
+lightness is a property of HSL geometry, not of how light the result looks.
+Measured over the nine system accents (standalone values from libadwaita's
+own table, sRGB→oklab converted offline):
+
+| rung | oklab L per accent | spread |
+| --- | --- | --- |
+| `h 92% l 72%` (lit-edge-top) | 0.852 (red) … 0.983 (yellow) | **0.132** |
+| `h 83% l 61%` (lit-edge-bottom) | 0.798 (red) … 0.966 (yellow) | 0.168 |
+
+So the lit edge is a heavy near-white line on a yellow CTA and a faint one
+on a red one. Nothing chose that; it is the ramp.
+
+**Why this was already fixable.** Upstream derives the standalone colour in
+oklab itself — `oklab(from --accent-bg-color min(l, 0.5) a b)` light,
+`max(l, 0.85)` dark (gtk.css L2512) — which pins all nine accent sources
+into oklab L **0.499–0.509**, a spread of 0.010. The inputs are already
+perceptually uniform, so an ABSOLUTE lightness target is the entire fix.
+
+**Decision.** Flat targets, oklab, anchored on blue so the accent that was
+tuned by eye does not move:
+
+| rung | L | k | blue today |
+| --- | --- | --- | --- |
+| `--ov-lit-edge-top` | 0.938 | 0.40 | L 0.938, C 0.066 of 0.165 |
+| `--ov-lit-edge-bottom` | 0.898 | 0.51 | L 0.898, C 0.084 of 0.165 |
+| `--ov-neon-core` | 0.959 | 0.34 | L 0.959, C 0.056 of 0.165 |
+| `--ov-neon-tube` | 0.925 | 0.54 | L 0.925, C 0.088 of 0.165 |
+| `--ov-lit-edge-top` (dark) | 0.952 | 0.70 | L 0.952, C 0.072 of 0.102 |
+| `--ov-lit-edge-bottom` (dark) | 0.938 | 0.93 | L 0.938, C 0.095 of 0.102 |
+
+**The chroma factors are not a translation of 92%/83%.** Measured,
+C(rung)/C(source) under HSL runs **0.34 to 1.82** across the nine accents:
+HSL saturation-% has no hue-independent oklab counterpart, because at 72%
+lightness it is sRGB's gamut that compresses the chroma, not the 92%. What
+carries over is the *intent* 404d995 recorded — "the pair must sit inside
+the palette it lights, not outside it" — as one factor against the accent's
+own `a`/`b`. `calc()` over a colour coordinate is GTK's own documented form
+(`hsl(from red h calc(s * 1.3) …)`); the sheet already relied on it for the
+gel rungs, so this is not a new capability.
+
+**The neon pair lost its implicit scheme split, deliberately.** `h 100% l
+78%` was a large lift over a light-scheme source (L 0.50) and almost none
+over a dark-scheme source (L 0.85), so one token read at two strengths. An
+absolute L reads the same in both, and `probe-accent` (H3) now measures the
+dark branch separately.
+
+**Known change, not a regression.** Slate's source chroma is 0.038 (a
+near-grey blue), so scaling `a`/`b` cannot reproduce the rung's chroma the
+way HSL's high-lightness gamut expansion did; its lit edge is now correctly
+grey rather than tinted. Yellow moves the other way and loses some edge
+definition (0.983 → 0.938) — that is the flattening, and it is the whole
+point of the change.
+
+**Evidence.** `calc(a * 0.40)` resolves and is consumed: forcing the target
+to 0.30 moves `controls` (104 px, max Δ185) and nothing else. Containment
+against the HSL build at the same accent — 12/15 families byte-identical in
+light, 13/15 in dark; the three that move are the families that wear the
+register. Blue is the anchor: max Δ8/255 on `columns` (rounding), and the
+checked switch is visually identical. **Under `prefers-contrast: more`,
+0 px changed across all 15 families** — the existing L1 reverts fully
+neutralise the change, which is the a11y rule holding structurally.
+`probe-foreign` exit 0. Nine-accent sweep sheets in `out/sw-*` vs
+`out/old-*`.
+
+## H2: The contracts only ran in one direction — 6 Oct 2026
+
+**Problem.** `check-selectors` answered "does upstream still provide what we
+registered?" It never answered "do we actually depend on anything
+unregistered?" — so a mistyped variable in `_tokens.scss` was invisible, and
+so was the whole of `src/_user.scss` (H4). Two ways to be wrong, one guard.
+
+**Two things had to be built, not one.**
+
+`extract_selectors` is a heuristic tuned for **minified** upstream CSS, where
+`{` always opens a rule: split on `{` and `,`, drop `@define-color`. Run on
+the *pretty-printed* built sheet it yields 495 "atoms", of which the
+overwhelming majority are declaration fragments (`box-shadow: inset 0 1px
+…`, `white 14%`). A brace-depth walker over the same file yields 242 sane
+selectors. The heuristic is untouched — it is correct for what it is for.
+
+Even with a correct extractor, the **selector axis does not invert**, and
+that is the contract's own rule rather than a gap. `upstream/selectors.txt`
+registers "the ATOMS UPSTREAM USES for anything the overlay overrides — not
+necessarily the atoms the overlay itself writes", and names its own worked
+example: the overlay targets `.content-pane` directly, but upstream styles
+it only inside compounds, so the compound is what the guard must watch.
+`window` and `dialog` are GTK-core names that must not be there at all.
+Inverting it flags every compound the overlay composes in SCSS plus every
+GTK-core node — ~180 of 242 false positives.
+
+**Decision.** Add the reverse axis where it inverts cleanly: the **variable**
+axis. `src/_tokens.scss` is the only layer permitted to read an upstream
+property, and each is read through exactly one `--ov-up-*` alias, so
+"everything the sheet reads that is not `--ov-*` is in `variables.txt`" is a
+total, decidable statement. Plus a dead-token check (a `--ov-*` that is
+declared and never read is a leftover, not coverage).
+
+**Where the selector axis would belong.** `src/_user.scss` needs it most and
+does not get it; a user naming an unregistered selector writes a rule that
+upstream can silently invalidate. Recorded as an open gap, not solved.
+
+**Evidence.** `--reverse` passes today: 13 upstream properties read, all
+registered; 52 `--ov-*` tokens, 0 dead. Verified to bite by faulting the
+built sheet — an injected `var(--totally-unregistered-var)` and an injected
+`--ov-dead-token` both fail with exit 1 and an actionable line. One
+normalisation is load-bearing: libadwaita spells one property
+`---slider-border-color` (three dashes, defined on `scale`), so `var_refs`
+collapses leading dash runs to two exactly as `variables.txt` already does
+by hand. Skipped, loudly, when `build/gtk.css` is absent — the pacman hook
+runs as root and must never `sassc` into the user's gitignored `build/`.
+
+## H3: Accent liveness — measured, and narrower than advertised — 6 Oct 2026
+
+**Problem.** The register is a pure function of upstream's accent, so changing
+the system accent should re-derive the whole material system in a running
+app. Nothing tested that, and the claim had been made in conversation.
+
+**Decision.** `tools/probe-accent` — gtk4 only, no libadwaita, no GSettings,
+no file written, no system state touched. It re-points one property on
+`:root` from a provider at **801** (GTK compares provider priority before
+specificity, so an equal-priority override is ambiguous) and reports the
+**largest single-pixel move** between two renderings of the same node.
+
+**Why max-pixel and not a mean.** The first cut averaged the widget, and
+reported its own negative control as LIVE: the lit edge is a 1px hairline on
+a 300×24 node, so it moves a mean by single digits, in the same range as
+unrelated drift. Per-pixel max has no in-between to average away.
+
+**Verdict — the register is live.** Light and dark, `build/gtk.css`:
+`--accent-bg-color` → switch LIVE Δ709; `--accent-color` → switch LIVE Δ65
+(lit rungs); `--accent-bg-color` → CTA LIVE Δ399 (gel); control STALE Δ0.
+Exit 0. Stock control (`none`) exits 1, so the probe can fail.
+
+**Four things the tool found by being wrong first.** The lit rungs paint only
+in a state — `switch:checked > slider` and `scale:hover` — so a probe pointed
+at a resting knob measures a register that is switched off, not a dead one.
+L0 aliases the two accent inputs **separately**: `--ov-up-accent-fill` reads
+`--accent-bg-color`, `--ov-up-accent` reads `--accent-color`, so a pair that
+re-points `--accent-color` at the gel asks the wrong question. **The baseline
+had to be taken from a settled node**: the switch runs a 180ms state
+animation, so one baseline sample compared against a settled "after" returns
+STALE whenever the timing goes the wrong way — the same command on the same
+bytes gave LIVE max_delta=709 and STALE max_delta=0 on consecutive runs, which
+looked exactly like a regression in the fallback palette added the same day
+and cost a detour before it was recognised as a flaky instrument. The probe
+now samples until two consecutive renders agree and reports UNSTABLE if that
+never happens. **And the sanity pair is now enforced**: it is the instrument
+check — it proves the override reached the node at all — and the first version
+excluded it from the tally without ever requiring it, so a broken instrument
+reported success. Both fixed; six consecutive runs on identical bytes now
+agree, and a sheet with a genuinely dead link (the H6 fallback palette removed
+by hand, leaving the aliases pointing at undefined names) is reported as
+1/2 with exit 1.
+
+**What libadwaita does, for the record.** The accent path is GSettings, not a
+file watch: `strings` on the installed `libadwaita-1.so.0` shows
+`adw_settings_get_accent_color` and no file-monitor symbols, and
+`update_stylesheet()` reloads library *resources* on scheme/contrast change.
+So `--accent-color` follows the system accent key live; **colour-scheme does
+not** (relaunch needed), and **editing `gtk.css` does not** reload.
+`README.md` was right to say startup-only for the file and wrong to leave the
+accent asymmetry unstated. [INFERENCE — the accent-key live update is read
+off the binary and the upstream docs; it has not been watched by eye with an
+app open, which is a one-minute manual check.]
+
+## H4: Equal-specificity custom properties are last-wins — 6 Oct 2026
+
+**Problem, found while building the accent sweep.** Re-pointing the accent
+for a test sheet means prepending `:root { --accent-bg-color: X }` before the
+overlay. It did nothing: the pinned sheet's own `:root` comes later at equal
+specificity and wins. Appending the same rule *after* upstream's `:root` and
+before the overlay's worked immediately — the nine-accent sweep in H1 is
+built that way.
+
+**Decision.** Recorded because it is invisible and it will bite the next
+person who adds a palette layer (the temptation is real: a colourway is the
+obvious next feature and this is where it would silently do nothing). Any
+future `:root` palette must be appended after L0's aliases, and the sweep
+sheets are the reference implementation. No tooling enforces it.
+
+## H6: Packaging — what convention exists, and the one that does not — 6 Oct 2026
+
+Asked: how does this get to other people the way Linux software normally
+does. The answer is that **there is no convention to follow for the product
+that matters**, and that is a fact about libadwaita rather than about
+packaging.
+
+### The convention that does not exist
+
+- libadwaita **1.10** (7 Sep 2026) still has no theme support. GNOME Circle
+  #39 ruled that theming "will not affect the appearance of apps that use
+  Libadwaita"; libadwaita MR !77 concluded custom stylesheets "may not ever
+  be supported". `AdwStyleManager` pins `Adwaita-empty` at
+  `PRIORITY_THEME` (200).
+- `GTK_THEME` is, per GNOME developers, a debugging knob — "meant for
+  testing". It does override the pin, and users report it breaking
+  libadwaita layout (padding in Extension Manager). It is not an API.
+- **Flatpak has no GTK4 theme extension point.** Only
+  `org.gtk.Gtk3theme.*` exists; freedesktop-sdk's platform hardcodes it
+  (flatpak#4605, gnome-build-meta#697). The working answer is a filesystem
+  override: `--filesystem=xdg-config/gtk-4.0`.
+
+So every libadwaita theme in the wild installs the same unsupported way — by
+writing `~/.config/gtk-4.0/gtk.css`. Orchis and Colloid `rm -rf` that path
+and the `assets/` beside it.
+
+### Decision: meson, plus a reversible user step
+
+`meson.build` is GNOME's own build system and is what distro packaging
+already knows how to drive. `meson install` with DESTDIR produces:
+
+```
+<datadir>/themes/Adwaita-overlay/{index.theme,gtk-4.0/gtk.css,gnome-shell/gnome-shell.css}
+<bindir>/adwaita-overlay-install
+```
+
+The theme directory is the conventional artifact and covers GTK3, plain GTK4
+apps, and gnome-shell. The libadwaita front still needs the per-user step,
+because a system package must not write into a user's `~/.config` behind
+their back — so it ships as `adwaita-overlay-install`, which owns exactly one
+marked `@import` line and removes exactly that line on uninstall (verified
+byte-exact).
+
+Verified: `DESTDIR=… meson install` stages correctly and the installed
+`gtk.css` is byte-identical to the `tools/build` output (same sassc, so the
+packaged bytes match a local build).
+
+### The bug this surfaced, which packaging alone would have shipped
+
+Loading the sheet as a theme directory **painted nothing**. Measured: a
+button using `var(--window-bg-color, @theme_bg_color)` read `0,0,0` under
+`GTK_THEME`, against `246,245,244` through the user-config path.
+
+A theme directory **replaces** GTK's built-in palette, so `@theme_bg_color`,
+`@accent_color` and the rest are simply undefined there — the DD3 "painted
+nothing" mechanism, this time triggered by our own directory rather than by a
+non-libadwaita app. The `--ov-up-*` alias layer (DD3) was written for exactly
+this class of failure and had the same blind spot: it fell back to *named*
+colours, which are precisely what stops existing.
+
+Fixed with a private fallback palette in L0 (`@define-color ov_stock_*`),
+scheme-split. The `ov_` prefix is deliberate: redeclaring `@theme_bg_color` at
+priority 800 would shadow what libadwaita or a competing theme publishes.
+
+**Two things got this wrong before it was right**, both measured:
+
+1. Values taken from **libadwaita**'s palette. Wrong: a fallback is only read
+   where libadwaita is *absent*, so the palette in force is GTK 4's built-in
+   `Default` — whose dark `theme_bg_color` is `#353535` against libadwaita
+   light's `#fafafb`. Cost: buttons moved max Δ113/255.
+2. `var(--a, var(--b, @fallback))` as a **two-tier** fallback. It does not
+   work: when `--b` is invalid at computed-value time GTK propagates the
+   invalidity through the outer `var()` rather than taking the third argument
+   (measured: `0,0,0`). Single tier only.
+
+Corrected against `Default-light.css` / `Default-dark.css` extracted from
+`/usr/lib/libgtk-4.so.1`. The result is **0 px changed across all 15 gallery
+families** versus the old adaptive fallback — the fix adds robustness at zero
+cost, because in the environment where the fallback is read, `@theme_bg_color`
+resolves to exactly the value we now hardcode.
+
+### A withdrawn measurement, and why
+
+This entry originally claimed the two paths differ by "Δ51 on
+`button.suggested-action`". **That claim is withdrawn as untrustworthy**, and
+the correction matters more than the number did.
+
+The probe behind it ran a plain GTK4 app with no libadwaita. The overlay's CTA
+rules deliberately restate upstream's `background-image` — the file's own rule
+is that overriding `background-image` *replaces* upstream's value, so surface
+rules must restate the upstream stops alongside the overlay's. With upstream
+absent there is nothing to restate, so the overlay's CTA contributed only
+partial styling and the sampled pixel was never the overlay's material.
+Appending a maximally specific `button.suggested-action { background-color }`
+to the sheet changed **neither** path's rendered pixel, which is what exposed
+the probe as measuring GTK's image layer rather than our cascade.
+
+Verified instead, and all that can honestly be claimed:
+
+- identical bytes load through both mechanisms with **zero GTK parser
+  errors** (an earlier draft reported a `--ov-texture-image` parse error in the
+  theme-directory path; that came from a test sheet with upstream's and our
+  rules concatenated, and does not reproduce with the sheet alone — 0 errors
+  both ways);
+- both paths paint. The one `0,0,0` the probe reports is the progressbar
+  TROUGH, which is unpainted in both paths equally — a probe artifact, not a
+  difference between them, and a caution about reading single pixels here at
+  all;
+- the theme directory is **not** claimed as the supported path for
+  libadwaita, which is unaffected — it cannot reach those apps at all.
+
+**Not chased, deliberately.** The remaining difference, if there is one, is
+GTK's internal precedence between a named theme and user CSS at 800. It is not
+expressible in our CSS, the one lever that might bridge it (`!important`) is
+banned by rule 4 on purpose, and upstream states no expectation for a
+third-party theme under `GTK_THEME` — so there is no acceptance criterion to
+chase toward, and the effort would be unbounded. BACKLOG X9.
+
+### Not done, deliberately
+
+- **Flatpak.** No extension point exists; shipping one would mean an
+  override-only flatpak, which is not a distribution method.
+- **A real gnome-shell front.** Empty directory and a comment. GNOME 50's
+  shell links no GTK at all, shares no vocabulary, exposes no custom
+  properties, and `render-gallery` cannot render St.
+- **No fork.** Measured across all 19 GitHub forks: none changes libadwaita's
+  styling. `libharmonia` diverges by its README alone; `nick-redwill` is 29
+  lines in one function and 615 commits stale; `libadapta` is pinned to 1.5
+  and its own default branch is named `1.5.x`. For the one capability a fork
+  would buy — a *selectable* theme — an unmaintained 29-line patch or the AUR
+  `libadwaita-without-adwaita` already exist, and neither is ours to maintain.
+
+## H7: The GTK3 contract is a different kind of contract — 6 Oct 2026
+
+Closing G6's contract half. It could not be a copy of the libadwaita contract,
+because the GTK3 front is not the same kind of thing.
+
+`upstream/selectors.txt` guards a sheet that **names** upstream selectors and
+hand-writes rules against them, so it lists what our rules depend on. The
+GTK3 front (`decisions.md` G3) is a **recompile** of GTK3's own Adwaita plus
+libhandy's Adwaita sheets with the accent substituted for the `#3584e4`
+literals GTK3 bakes in. There is no hand-authored rule list to guard.
+
+So the two axes ask different questions:
+
+- **`variables.txt` — all 36 `@define-color` names GTK 3.24's Adwaita
+  defines.** The front resolves the entire palette, not a subset, so this is
+  the whole axis. A rename silently paints the wrong colour.
+- **`selectors.txt` — the 434 atoms that carry an accent declaration**, taken
+  from `tools/gtk3-accent-sites` (373 declarations, light + dark). Not all
+  2001 atoms of GTK3's sheet: that set is not hand-maintainable and would
+  describe a dependency we do not have. The 434 are the surface
+  `build-gtk3` actually **modifies**.
+
+**The failure this catches is the quiet one.** GTK removes or renames a
+selector carrying an accent, `build-gtk3`'s substitution table stops matching,
+and one widget keeps `#3584e4` baked in while every other widget follows the
+system accent. Nothing crashes; one control is permanently the wrong colour.
+
+**Verified to discriminate**, by doctoring a cached sheet rather than trusting
+a green run:
+
+| doctored sheet | reported | exit |
+| --- | --- | --- |
+| dropped `label selection` rules | `label selection` | 1 |
+| renamed `@wm_title` | `wm_title` | 1 |
+| dropped bare `entry` rules (unregistered) | nothing | 0 |
+
+That third row is the one that matters: the contract does not simply flag
+whatever disappears, so a future entry cannot quietly turn the axis into noise.
+
+**Still open, deliberately.** G6's other half — whether GTK3 apps should get
+the material system, not just the accent — is untouched. The GTK3 front is a
+recompile of upstream's Adwaita SCSS, so adding material there means forking
+that SCSS, which is a different decision from the one this contract guards.
+
+## H8: Building a real package — five bugs the build loop found — 6 Oct 2026
+
+`packaging/arch/{PKGBUILD,adwaita-overlay.install}`. Five defects, none of
+which a `meson install` into a temp prefix would have surfaced. All five are
+recorded because each one produced a package that **looked successful**.
+
+1. **`meson install` in `build()` cannot work.** makepkg creates `$pkgdir`
+   with mode `0111` during the build phase on purpose — `makepkg:1521` runs
+   `chmod a-srw` — so a build cannot write into the package directory; it is
+   restored to `755` at `makepkg:1374`, just before packaging. So the install
+   belongs in `package()`.
+2. **makepkg 7.x does not export `DESTDIR` for `package()`.** Without it
+   explicitly set, meson wrote into the real `/usr`. It has to be passed:
+   `DESTDIR="$pkgdir" meson install -C build`.
+3. **`--prefix="$pkgdir/usr"` doubles the path.** meson prepends `DESTDIR` to
+   the configured prefix, so the whole tree stages under `$pkgdir/$pkgdir/usr`
+   — an empty-looking package that reports success. `--prefix=/usr` and let
+   `DESTDIR` do the staging.
+4. **`$srcdir` is the extraction root, not the package directory.** With a
+   versioned wrapper directory in the tarball, `srcdir` is `src/` and the
+   sources are at `src/$pkgname-$pkgver/`. Fixed the durable way: a **flat**
+   tarball, which is also the current Arch convention.
+5. **The theme directory is not the package name.** `meson.build` installs to
+   `Adwaita-overlay` (capitalised, because that is a GTK theme name) while the
+   package is `adwaita-overlay`. Two namespaces. Caught by `package()`'s
+   byte-comparison, which failed on a path that did not exist.
+
+And one the *packaging test* found that no unit of the build would have:
+
+6. **`tools/install` could not find its own sheet once installed.** It derived
+   the repo root from `dirname $0`, which is right from `tools/` in the source
+   tree and wrong the moment the package installs the script as
+   `/usr/bin/adwaita-overlay-install` — it resolved "repo" to `/usr` and tried
+   to copy `/usr/build/gtk.css`, so **the packaged install command failed
+   outright**. Found by installing the package and running the installed
+   binary rather than the one in the tree. It now probes, in order:
+   `$ADWAITA_OVERLAY_SHEET`, `../build/`, `../share/themes/Adwaita-overlay/…`,
+   `/usr/share/…`, `/usr/local/share/…`.
+
+### What the package deliberately does NOT do
+
+No post-install writes to the user's config. The GTK4 half cannot reach
+libadwaita apps (H6), and the only route is `~/.config/gtk-4.0/gtk.css`,
+which belongs to the user — so `.install` prints instructions and
+`adwaita-overlay-install` does the work when they ask. A package that
+silently rewrites a config file to make itself work is a package that will
+clobber something.
+
+`conflicts=` cannot express the real constraint either: only one tool can own
+`gtk-4.0/gtk.css`, and `pacman` has no way to know about
+`adw-colors`/`Gradience`/`Orchis -l`. So `.install` says it in words.
+
+### Verified from the built package, not the tree
+
+`makepkg` output unpacked to a fake sysroot, then:
+
+| check | result |
+| --- | --- |
+| payload | `usr/share/themes/Adwaita-overlay/{index.theme,gtk-4.0/gtk.css,gnome-shell/gnome-shell.css}` + `usr/bin/adwaita-overlay-install` |
+| packaged sheet vs `tools/build` | **byte-identical** |
+| theme dir via `GTK_THEME` from the sysroot | loads, **0 parser errors** |
+| installed installer, sandboxed | adds one marked `@import`, preserves the user's own rules and `assets/` |
+| theme actually applied | CTA centre `2,33,71` against stock `148,179,216` |
+| uninstall | user's `gtk.css` restored **byte for byte**, sidecar removed |
+
+`check()` runs inside `makepkg` and refuses to finish if `tools/check-selectors`
+fails against the installed libadwaita/gtk3, so the package cannot be built
+against a host whose selectors it depends on have moved.

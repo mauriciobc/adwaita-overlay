@@ -1,0 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2026 mauriciobc
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+/* adwaita-overlay — gnome-shell front. Intentionally empty.
+ *
+ * The GNOME 50 shell links no GTK: gnome-shell(1) resolves zero libgtk-3,
+ * libgtk-4 or libadwaita, so it is a St/Clutter/Mutter surface. It never reads
+ * $XDG_CONFIG_HOME/gtk-4.0/gtk.css, and it exposes none of the custom
+ * properties the overlay derives from — there is nothing here to inherit.
+ *
+ * This directory exists so the front is discoverable and selectable through
+ * the user-theme extension (org.gnome.shell.extensions.user-theme name =
+ * "Adwaita-overlay"), which loads <datadir>/themes/<name>/gnome-shell/
+ * gnome-shell.css. When the front is written it will need its own palette
+ * (no upstream variables to alias), its own widget vocabulary, and its own
+ * offscreen renderer — render-gallery links libadwaita-1 and cannot draw St
+ * widgets. decisions.md H6.
+ */

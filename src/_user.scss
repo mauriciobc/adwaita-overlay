@@ -1,0 +1,38 @@
+// SPDX-FileCopyrightText: 2026 mauriciobc
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// YOUR OWN CSS GOES HERE. Imported last by src/overlay.scss, after every
+// L2 family, so anything in this file has the last word over the overlay.
+//
+// This file exists because tools/build owns ~/.config/gtk-4.0/gtk.css by
+// symlink: after the pre-existing user sheet was migrated into src/surfaces/
+// (proposal amendment 10), there was nowhere else to put a personal override
+// that did not mean editing a family file and claiming its comments. It is
+// empty by default and emits nothing, exactly like src/_debug.scss.
+//
+// THE THREE RULES, and the reverse axis is what enforces them:
+//
+//   1. Every upstream custom property you read must be in
+//      upstream/variables.txt. Read it through a --ov-up-* alias in
+//      src/_tokens.scss, never inline here — an unregistered property is
+//      what the guard cannot see.
+//   2. Every upstream selector you name must be in upstream/selectors.txt,
+//      or its absence upstream must be something you have decided you do
+//      not care about (the file's header explains why that is a judgement
+//      call and not an oversight).
+//   3. No !important. At priority 800 over upstream's 200, a rule that does
+//      not win is aimed at the wrong node, and !important hides that from
+//      you until the next upgrade.
+//
+// tools/check-selectors --reverse reads the BUILT sheet, so whatever you
+// write here is checked the same way the overlay's own dependencies are. A
+// new upstream variable that is not registered fails the check with the
+// line to add; that is the point of routing personal tweaks through here
+// rather than around the build.
+//
+// Keep it personal and keep it small. This file is not a theme fork: it is
+// the escape hatch for one machine's taste, and the reverse axis treats it
+// as a first-class part of the sheet because it is one.
+//
+// If you edit this file and want git to stop reporting it as modified:
+//
+//   git update-index --skip-worktree src/_user.scss

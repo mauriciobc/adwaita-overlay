@@ -1,11 +1,15 @@
 upstream/cache/
 build/
+_build/
+# render-gallery / gallery-diff default target (README "Tracking widget
+# coverage"); reproducible, same as build/
+out/
 
 # Agent-harness scaffolding: the coding harness installs its skills into the
 # project directory (one dir per harness entry point, all symlinks to the
 # same skill set). Not part of the theme, never committed, never read by the
 # build. Exactly these paths — the theme's own src/, tools/, docs/, hooks/,
-# assets/ and upstream/ are the project and stay tracked.
+# share/, assets/ and upstream/ are the project and stay tracked.
 .agents/
 .claude/
 .commandcode/
