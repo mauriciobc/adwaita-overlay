@@ -52,7 +52,7 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install dependencies
-        run: pacman -Syu --noconfirm --needed base-devel git meson sassc libadwaita glib2 gawk sed grep
+        run: pacman -Syu --noconfirm --needed base-devel git meson sassc libadwaita glib2-devel gawk sed grep
       - uses: actions/checkout@v4
       - name: Dist tarball
         run: |

@@ -15,8 +15,9 @@ pkgdesc="Bevelled edges, layered texture and depth for libadwaita, as an additiv
 arch=('any')
 url="https://github.com/mauriciobc/adwaita-overlay"
 license=('LGPL-2.1-or-later')
-# glib2: the installed checker uses `gresource` to read libadwaita's sheet.
-depends=('bash' 'glib2' 'gawk' 'sed' 'grep')
+# glib2-devel: on Arch it (not glib2) ships `gresource`, which the installed
+# checker uses to read libadwaita's sheet.
+depends=('bash' 'glib2-devel' 'gawk' 'sed' 'grep')
 makedepends=('meson' 'sassc')
 # The forward contract axis needs the host libadwaita, only while checking.
 checkdepends=('libadwaita')

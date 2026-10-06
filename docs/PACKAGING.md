@@ -24,8 +24,6 @@ only; other distros leave it off (default).
 - **Build:** `meson`, `sassc` (libsass). `dart-sass` compatibility is
   unverified: the sheet has only ever been compiled with `sassc`, and the
   installed bytes are expected to match a local `tools/build`.
-- **Runtime (the installed checker and installer):** `bash`, `glib2`
-  (`gresource`, to read libadwaita's stylesheet), `gawk`, `sed`, `grep`,
   `coreutils`. The sheet itself needs nothing.
 - **Check (`meson test` and the forward contract axis):** the installed
   `libadwaita`. `meson test` alone (the reverse axis) needs no libadwaita.
