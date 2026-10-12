@@ -55,6 +55,24 @@
 // ---------------------------------------------------------------------
 $ov-upstream-ring: outline-color, outline-width, outline-offset;
 
+// ---------------------------------------------------------------------
+// Background blur — the window class an app sets while its sidebar wears
+// `backdrop-filter: blur()` over a transparent window (GTK 4.24 forwards
+// it to the compositor's background-effect protocol, GNOME 51).
+//
+// GTK CSS cannot select on a property's value, and there is no :has() or
+// @supports, so the sheet cannot detect the blur itself: the app has to
+// say so with a class. And because this sheet sits at priority 800 over the
+// app's 600, ANY background the overlay declares on those nodes wins and
+// paints over the blur — so the window, the sidebar pane and the sidebar's
+// top bar step aside for this class (_window, _sidebar, _headerbar).
+//
+// Not an upstream atom: libadwaita has no blur class (verified against
+// 1:1.10.0-1), so it is deliberately absent from upstream/selectors.txt.
+// The name is babble's (io.github.mauriciobc.Babble, window.py).
+// ---------------------------------------------------------------------
+$ov-blur-host: ".translucent-sidebar";
+
 @mixin ov-motion($specs...) {
   $list: ();
   @each $spec in $specs {

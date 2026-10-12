@@ -2662,3 +2662,48 @@ clobber something.
 `check()` runs inside `makepkg` and refuses to finish if `tools/check-selectors`
 fails against the installed libadwaita/gtk3, so the package cannot be built
 against a host whose selectors it depends on have moved.
+
+## H9: Background blur — the overlay steps aside for a blur host — 11 Oct 2026
+
+GNOME 51 apps can blur the desktop behind a translucent surface: GTK 4.24
+accepts `backdrop-filter: blur()` and forwards it to the compositor's
+background-effect protocol. Babble does it on its sidebar, behind a window
+class (`window.translucent-sidebar`: transparent window, sidebar tinted 70%
+over `backdrop-filter`). The overlay erased it, because at priority 800 every
+background it declares beats the app's 600:
+
+- `window` → 96% window tint: the desktop no longer shows through;
+- `.sidebar-pane` → `transparent`: replaced the app's 70% tint;
+- `toolbarview > .top-bar` → opaque bar material over the sidebar's header,
+  where upstream is transparent until `.raised`.
+
+GTK CSS cannot select on a property's value and has no `:has()` or
+`@supports`, so the sheet cannot detect the blur; the app's class is the
+signal. libadwaita 1:1.10.0-1 has no blur class of its own (its sheet does
+not mention blur at all), so the hook is one Sass variable, `$ov-blur-host`
+in `_primitives.scss`, not an upstream atom — absent from
+`upstream/selectors.txt` on purpose. `window` and `.sidebar-pane` are now
+excluded with `:not()` (the overlay declares nothing there, so the app's
+rules win); the sidebar's top bar restates upstream (`none`, `.raised` →
+`--ov-up-bar-bg`), since the app does not style it.
+
+### Measured
+
+Offscreen AdwNavigationSplitView with babble's `style.css` at priority 600,
+`XDG_CONFIG_HOME` emptied (otherwise the installed user sheet loads into the
+probe and "stock" is not stock), `backdrop-filter` stripped (offscreen there
+is no compositor behind the window and the filter renders opaque — the
+background alpha is what the overlay controls). RGBA at the sidebar body /
+sidebar header:
+
+| sheet | light | dark |
+| --- | --- | --- |
+| no overlay | `235,235,238,178` / same | `46,46,50,178` / same |
+| before | `250,250,251,245` / `248,248,248,255` | `34,34,37,245` / `68,68,71,255` |
+| after | `235,235,238,178` / same | `46,46,50,178` / same |
+
+After = stock, exactly, in both schemes; raised sidebar header matches stock
+(`255,255,255,255`). Without the class nothing moved: the gallery diff
+before/after is 0 px changed across all 15 families, light and dark. The
+content pane keeps the overlay's material in a blur host (babble keeps it
+opaque too).

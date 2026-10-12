@@ -37,3 +37,16 @@ toolbarview > .top-bar:backdrop {
 toolbarview > .top-bar headerbar {
   background: none;
 }
+
+// The sidebar's top bar in a blur host ($ov-blur-host): the bar material is
+// opaque and would cover the blur across the whole header strip. Restate
+// upstream instead — transparent at rest, the bar colour once content
+// scrolls under it (`.raised`). Higher specificity than the rules above, so
+// it also wins inside ov-bar-surface()'s dark and contrast @media blocks.
+window#{$ov-blur-host} .sidebar-pane toolbarview > .top-bar {
+  background: none;
+}
+
+window#{$ov-blur-host} .sidebar-pane toolbarview > .top-bar.raised {
+  background-color: var(--ov-up-bar-bg);
+}

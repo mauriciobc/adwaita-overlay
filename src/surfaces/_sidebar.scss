@@ -29,7 +29,9 @@
 //   * High contrast: clean reversion to transparent under prefers-contrast: more,
 //     letting upstream's 1px HC outline take over.
 
-.sidebar-pane {
+// Not in a blur host ($ov-blur-host): there the app tints the pane over its
+// backdrop-filter, and declaring anything here at 800 would replace the tint.
+window:not(#{$ov-blur-host}) .sidebar-pane {
   background-color: var(--ov-surface-sidebar);
 }
 

@@ -16,8 +16,12 @@
 // dependency. Our own `.content-pane` atom matches any pane widget at
 // priority 800 regardless.
 // .sidebar-pane: moved to _sidebar.scss.
+//
+// A blur host ($ov-blur-host, _primitives.scss) is left alone: its app makes
+// the window transparent so the blurred desktop shows through the sidebar,
+// and our 96% tint at priority 800 would paint it back in.
 
-window,
+window:not(#{$ov-blur-host}),
 dialog {
   background-color: var(--ov-surface-window);
 }
