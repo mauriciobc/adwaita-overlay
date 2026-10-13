@@ -20,9 +20,9 @@
 // Grounds are never replaced here. This sheet outranks the app's own CSS
 // (800 vs 600), so a window or pane `background-color` of ours would
 // overwrite whatever the app paints — a weather sky, a black lightbox, a
-// blurred translucent sidebar — while its `color` stays. The window,
-// dialog and `.sidebar-pane` are therefore left to upstream (decisions.md
-// H10; the tint and the transparent sidebar are gone).
+// blurred translucent sidebar — while its `color` stays. The window and
+// dialog are left to upstream (decisions.md H10). Blur hosts ($ov-blur-host)
+// get a separate additive path on the sidebar pane (_sidebar.scss, H11).
 //
 // `.content-pane` gets only a faint white wash as `background-image`
 // (dark: #222226 -> #2a2a2e, the old +8; light: <1/255), additive over

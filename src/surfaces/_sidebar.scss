@@ -49,6 +49,14 @@
   }
 }
 
+// Blur host ($ov-blur-host): the stock wash is white/black at 75%/26% and
+// buries backdrop-filter; the app already tints the pane over the blur.
+// Step aside to a highlight tint + whisper gradient only (H11).
+window#{$ov-blur-host} .sidebar-pane {
+  background-image: none;
+  @include ov-blur-host-pane-surface();
+}
+
 // Exit microinteraction: applied on mouse leave when returning to unhovered state
 .navigation-sidebar > row,
 .navigation-sidebar > child,

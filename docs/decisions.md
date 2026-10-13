@@ -2905,3 +2905,25 @@ A state is a SNAP only when INSTANT at 16 ms and 80 ms. Found:
   the lift rows are unproven; a disabled switch is not in the gallery, checked
   by probe values only; `reuse lint` could not be run (not installed here); no
   live eyeball pass yet - feel is the user's call, as on 23 Sep.
+
+## H11: Blur host — minimum H9 back, highlight tint only — 13 Oct 2026
+
+**Context.** H10 removed the `$ov-blur-host` hook with the opaque grounds; Babble's
+`window.translucent-sidebar` + `backdrop-filter` sidebar regressed because the
+stock `--ov-sidebar-wash` (75%/26% white/black) and `ov-bar-surface()` on
+`toolbarview > .top-bar` still run at 800 and paint over the blur.
+
+**Rule.** H10's additive discipline stays everywhere else. For blur hosts only,
+reintroduce the H9 signal (`$ov-blur-host: ".translucent-sidebar"` in L1) on:
+
+| node | stock overlay | blur host |
+| --- | --- | --- |
+| `window` / `dialog` | none (H10) | none — app keeps transparent window |
+| `.sidebar-pane` | `--ov-sidebar-wash` | `ov-blur-host-pane-surface()`: flat `accent-bg` @4% + gradient 2%→5%, no grain |
+| `.sidebar-pane toolbarview > .top-bar` | `ov-bar-surface()` | transparent; `.raised` → same mixin at 2.5× strength |
+
+No `background-color` on any of these nodes. Window tint is not restored.
+Content pane keeps the 4% white wash (babble keeps it opaque too, H9).
+
+**Tuning.** Alphas live in `ov-blur-host-pane-surface()` (`$strength` scales
+4%/2%/5%); user asked for highlight colour and a *very* subtle gradient only.

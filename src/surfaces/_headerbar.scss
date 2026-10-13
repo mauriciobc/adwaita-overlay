@@ -25,3 +25,15 @@ toolbarview > .top-bar {
 toolbarview > .top-bar headerbar {
   background: none;
 }
+
+// Sidebar top bar in a blur host: ov-bar-surface() above is opaque enough to
+// kill the blur across the header strip. Transparent at rest; when content
+// scrolls under (`.raised`) a slightly stronger highlight tint only (H9/H11).
+window#{$ov-blur-host} .sidebar-pane toolbarview > .top-bar {
+  background-image: none;
+  background-color: transparent;
+}
+
+window#{$ov-blur-host} .sidebar-pane toolbarview > .top-bar.raised {
+  @include ov-blur-host-pane-surface(2.5);
+}

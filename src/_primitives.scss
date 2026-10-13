@@ -55,6 +55,36 @@
 // ---------------------------------------------------------------------
 $ov-upstream-ring: outline-color, outline-width, outline-offset;
 
+// ---------------------------------------------------------------------
+// Background blur — the window class an app sets while its sidebar wears
+// `backdrop-filter: blur()` over a transparent window (GTK 4.24 → compositor
+// background-effect, GNOME 51). GTK CSS cannot detect the filter; the class is
+// the signal. At priority 800 any opaque ground or heavy sheen on window,
+// sidebar-pane or the sidebar's top bar paints over the blur (decisions.md
+// H9, H11). Not an upstream atom — libadwaita has no blur class — so absent
+// from upstream/selectors.txt. Babble: `.translucent-sidebar`.
+// ---------------------------------------------------------------------
+$ov-blur-host: ".translucent-sidebar";
+
+// Additive material for blur hosts only: a flat tint in the accent highlight
+// (--ov-up-accent-fill) plus a very faint top-lit gradient. No grain — the
+// desktop must stay readable through the stack. Alphas (H11): 4% tint, 2%/5%
+// sheen; $strength scales all three (raised sidebar top bar uses 2.5).
+@mixin ov-blur-host-pane-surface($strength: 1) {
+  $t: 4% * $strength;
+  $g0: 2% * $strength;
+  $g1: 5% * $strength;
+  background-image:
+    linear-gradient(to bottom,
+      color-mix(in srgb, var(--ov-up-accent-fill) $g0, transparent),
+      color-mix(in srgb, var(--ov-up-accent-fill) $g1, transparent)),
+    linear-gradient(color-mix(in srgb, var(--ov-up-accent-fill) $t, transparent),
+                    color-mix(in srgb, var(--ov-up-accent-fill) $t, transparent));
+  @media (prefers-contrast: more) {
+    background-image: none;
+  }
+}
+
 @mixin ov-motion($specs...) {
   $list: ();
   @each $spec in $specs {
