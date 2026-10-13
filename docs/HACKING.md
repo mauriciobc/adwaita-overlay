@@ -91,9 +91,12 @@ gcc -O1 -o build/render-widget tools/render-widget.c $(pkg-config --cflags --lib
 build/render-widget <css-file> <out.tiff> <button|headerbar> <width> <height>
 ```
 
-Offscreen motion and state verdicts — walks a real button and a real
-`.boxed-list` row through hover, press and focus, and a headerbar through
-backdrop, sampling at rest / mid-transition / settled:
+Offscreen motion and state verdicts — a table of ~100 probes (every family the
+L2 selectors touch) flips a state flag, `sensitive`, a CSS class or the real
+`active` property on a real widget and samples the rendered pixels at rest /
+mid-transition / settled. libadwaita-only nodes (toggle-group, splitbutton,
+tabbar tab) are plain-GTK stand-ins that only rename the CSS node. A state
+is a SNAP when it is INSTANT at both a 16ms and an 80ms sample:
 
 ```
 gcc -O1 -o build/probe-motion tools/probe-motion.c $(pkg-config --cflags --libs gtk4)
@@ -102,11 +105,19 @@ build/probe-motion build/gtk.css 80 upstream/cache/1:1.9.4-1/gtk.css  # + upstre
 REDUCE=1 build/probe-motion build/gtk.css ...                       # prefers-reduced-motion
 NOANIM=1 build/probe-motion build/gtk.css ...                       # gtk-enable-animations=false
 SCHEME=dark build/probe-motion build/gtk.css ...                    # dark scheme
+EMPTY_THEME=1 build/probe-motion ...    # faithful: libadwaita's Adwaita-empty base + accent colours
+PROBE=<substr> build/probe-motion ...   # only rows whose name contains <substr>
+# headless:  env GDK_BACKEND=x11 xvfb-run -a -s '-screen 0 1600x1200x24' ...
 ```
 
 Pass the upstream sheet whenever the surface under test derives from an
 upstream variable (`--headerbar-bg-color` and friends): without it the
 declaration is invalid at computed-value time and nothing measures.
+
+Use `EMPTY_THEME=1` for verdicts you intend to act on: plain GTK keeps its
+built-in theme (an opaque button `background-image`) under the upstream
+sheet, libadwaita does not, so the default mode reads some hover states as
+snaps that are not. The default stays for the five original probes' numbers.
 
 ## Accent
 
@@ -196,11 +207,19 @@ tools/gallery-diff out/hover-stock out/hover
 Motion lives in L0 (`--ov-motion-*`: curve, enter/exit/press/switch/ring)
 and every declaration emits through `ov-motion()` in L1 — which also
 restates upstream's focus-ring motion, because a `transition` declaration
-replaces the list rather than extending it. `prefers-reduced-motion:
-reduce` collapses every duration to `0ms` (same state language, no
-animation); `gtk-enable-animations=false` already does that globally in
-GTK itself. Rationale and measurements: `docs/decisions.md`, "Motion
-review — 23 Sep 2026".
+replaces the list rather than extending it. A rule adds a property to a
+list only when upstream's own list lacks it: where upstream already animates
+the property on that node, declare nothing (declaring would silence it).
+Keep box-shadow slots and background-image layers congruent across states,
+or GTK snaps. `prefers-reduced-motion: reduce` collapses every duration to
+`0ms` (same state language, no animation): the tokens cover the lists this
+sheet declares, `src/_reduce.scss` covers upstream's own literals
+(`* { transition-duration: 0ms }`). Keyframe feedback, if ever added, must be
+switched off with `animation: none` inside that query — a zero duration
+still paints one frame of the `from` value. `gtk-enable-animations=false`
+already zeroes everything in GTK itself. Rationale and measurements:
+`docs/decisions.md`, "Motion review — 23 Sep 2026" and "Motion pass —
+13 Oct 2026".
 
 ## Foreign apps (no libadwaita)
 
@@ -275,8 +294,19 @@ BACKLOG X9 for the open question and for what a trustworthy probe would need.
 - `upstream/variables.txt` — every upstream variable L0 reads, all of them
   through the `--ov-up-*` aliases. Guards the load-bearing layer; a renamed
   upstream variable is caught here, not by the selector contract.
+- `upstream/motion.txt` — the motion *literals* the `--ov-motion-*` tokens
+  are derived from (`cubic-bezier(0.25, 0.46, 0.45, 0.94)`, the focus-ring
+  trio, `transition: background-color 200ms ease-out` on `:backdrop`, the
+  150ms tabbar and `needs_attention` timings, the bottom-sheet pair). libadwaita
+  has no motion variables, so there is nothing for an alias to read; instead
+  each literal is matched as a fixed string against the whitespace-collapsed
+  sheet, and the comment above it names the token it backs. A libadwaita bump
+  that retunes motion is reported as `MISSING MOTION LITERALS` (exit 1) with
+  that label. Add a line in the same commit as the token or rule that mimics
+  it, and only literals present in the pinned sheet. `animation: spin 1s linear
+  infinite` is deliberately absent: libadwaita 1.10 dropped the CSS spinner.
 
-Both files are checked in one direction only — *does upstream still provide
+The selector and variable files are checked in one direction only — *does upstream still provide
 what we registered?* — so `check-selectors --reverse` adds the other
 direction against the **built** sheet: every upstream property it reads must
 be in `variables.txt`, and every `--ov-*` it declares must be read somewhere.

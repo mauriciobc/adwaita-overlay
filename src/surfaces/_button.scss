@@ -88,7 +88,8 @@ menubutton:active > button:not(.flat):not(.osd):not(:drop(active)) {
   filter: brightness(0.96);
   // Press: crisp, mechanical, immediate.
   @include ov-motion(box-shadow var(--ov-motion-press),
-                     filter var(--ov-motion-press));
+                     filter var(--ov-motion-press),
+                     background-color var(--ov-motion-press));
 }
 
 button:not(.flat):not(.osd):not(:drop(active)):checked {
@@ -308,7 +309,8 @@ button.suggested-action:not(.flat):not(.osd):not(:drop(active)):checked {
   background-image: none;
   filter: none;
   @include ov-motion(background var(--ov-motion-exit),
-                     box-shadow var(--ov-motion-exit));
+                     box-shadow var(--ov-motion-exit),
+                     filter var(--ov-motion-exit));
 }
 
 $ov-flat-opaque: ":not(.raised):not(.suggested-action):not(.destructive-action):not(.opaque)";
@@ -406,5 +408,78 @@ $ov-flat-variation-guard: ":not(.raised):not(.suggested-action):not(.destructive
 @each $sel in $ov-flat-variation {
   #{$sel}#{$ov-flat-variation-guard} {
     @include ov-flat-register();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Icon press — the glyph dips with the button (decisions.md, motion
+// microinteractions). `-gtk-icon-transform` on the `image` inside a pressed
+// button scales the ICON only: the node's bounds, and so its hit area and
+// the layout, stay put (a scale-down on the pressable itself would shrink
+// the hit area under the pointer — the pointer near the edge would flap
+// :active). It animates like any property: the press token in, the exit
+// token out, so the rest rule carries the same property in its own list.
+//
+// Scope is what the press well covers: the opaque material (every button
+// the guard of the well lets through, the menubutton wrapper's inner button
+// included) and the `.flat` variation, exactly the selectors above.
+//  - Structural flat families (window controls, pathbar crumbs, popover
+//    model buttons, ...) match the opaque guard too, because they are
+//    not `.flat` by class; the reset below hands their glyph back with the
+//    very selectors the material reset uses (eight classes, so it outranks
+//    the rules here with no `!important`).
+//  - Two of those families own an `image` transition upstream (window
+//    controls, tab thumbnail: background + box-shadow); a rest rule here
+//    would replace that list, so the reset restates it.
+//  - placesview's `.server-list-button` rotates its glyph through the very
+//    same property; a press scale would erase the rotation.
+//
+// HC: the press well reverts to the ring there (above), so the dip steps
+// aside with it — the pressed state must not hang on a cue the rest of the
+// state has lost. Declared under `no-preference`, like ov-flat-register().
+// ---------------------------------------------------------------------
+$ov-icon-dip: 0.92;
+$ov-icon-guard: ":not(.server-list-button)";
+$ov-icon-image-owners: "windowcontrols > button.image-button",
+                       "tabthumbnail button";
+
+@mixin ov-icon-dip($scope) {
+  #{$scope} image {
+    @include ov-motion(-gtk-icon-transform var(--ov-motion-exit));
+  }
+  #{$scope}:active image,
+  #{$scope}.keyboard-activating image {
+    @media (prefers-contrast: no-preference) {
+      -gtk-icon-transform: scale($ov-icon-dip);
+    }
+    @include ov-motion(-gtk-icon-transform var(--ov-motion-press));
+  }
+}
+
+@include ov-icon-dip("button:not(.flat):not(.osd):not(:drop(active))#{$ov-icon-guard}");
+
+// The wrapper's pressed state reaches the inner button the same way the
+// well does; its rest and release ride the rule above.
+menubutton:active > button:not(.flat):not(.osd):not(:drop(active))#{$ov-icon-guard} image {
+  @media (prefers-contrast: no-preference) {
+    -gtk-icon-transform: scale($ov-icon-dip);
+  }
+  @include ov-motion(-gtk-icon-transform var(--ov-motion-press));
+}
+
+@each $sel in $ov-flat-variation {
+  @include ov-icon-dip("#{$sel}#{$ov-flat-variation-guard}#{$ov-icon-guard}");
+}
+
+@each $family in $ov-flat-structural {
+  #{$family}#{$ov-flat-self} image {
+    -gtk-icon-transform: none;
+  }
+}
+
+@each $family in $ov-icon-image-owners {
+  #{$family}#{$ov-flat-self} image {
+    @include ov-motion(background var(--ov-motion-exit) var(--ov-motion-ease),
+                       box-shadow var(--ov-motion-exit) var(--ov-motion-ease));
   }
 }

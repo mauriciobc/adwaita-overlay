@@ -473,8 +473,10 @@
   // animates no movement at all — every effect is a colour or shadow
   // change, i.e. pure state legibility — so the reduced variant is no
   // duration rather than a shorter one: untouched state language (nothing
-  // teleports, nothing is hidden), no animation to sit through. One
-  // override, every rule follows.
+  // teleports, nothing is hidden), no animation to sit through. Zeroing
+  // these tokens silences every transition this sheet declares; upstream's
+  // own literal transitions and keyframes are silenced by src/_reduce.scss
+  // (a universal transition-duration reset plus `animation: none`).
   @media (prefers-reduced-motion: reduce) {
     --ov-motion-enter: 0ms;
     --ov-motion-exit: 0ms;

@@ -66,9 +66,12 @@ switch {
   // Upstream animates background and box-shadow here; the gel rides
   // background-image. All three follow the switch duration, which matches
   // the native knob slide.
+  // `filter` carries upstream's disabled dim (`switch:disabled { filter:
+  // opacity() }`), which upstream gives no transition.
   @include ov-motion(background-color var(--ov-motion-switch),
                      background-image var(--ov-motion-switch),
-                     box-shadow var(--ov-motion-switch));
+                     box-shadow var(--ov-motion-switch),
+                     filter var(--ov-motion-switch));
 }
 
 // Upstream modulates a checked track with a state layer on hover and press
@@ -104,7 +107,8 @@ switch > slider {
   // is native, and the resting rule owners it), so this is additive rather
   // than a replacement: the dish and the lit pair land with the knob's slide
   // at --ov-motion-switch, the house duration matched to that travel.
-  @include ov-motion(box-shadow var(--ov-motion-switch));
+  @include ov-motion(background-image var(--ov-motion-switch),
+                     box-shadow var(--ov-motion-switch));
 }
 
 // The ENGAGED thumb — the pen's lever (26 Sep 2026, decisions.md "Pen dial
@@ -132,8 +136,18 @@ switch:checked > slider {
 // no drop, no insets, no gradient. The state stays legible because the
 // track keeps upstream's own dim (`switch:disabled { filter }`, untouched).
 switch > slider:disabled {
-  background-image: none;
-  box-shadow: none;
+  // The resting gradient's stops at zero alpha, for the same reason.
+  background-image: linear-gradient(to bottom,
+    color-mix(in srgb, var(--ov-up-light-1) 0%, transparent),
+    color-mix(in srgb, var(--ov-up-light-1) 0%, transparent));
+  // The resting five slots, every one at zero alpha: flat to the eye, but
+  // congruent with the resting list so enabled<->disabled interpolates
+  // instead of snapping (`none` against five slots is INSTANT in GTK).
+  box-shadow: 0 0 0 0 transparent,
+              0 0 0 transparent,
+              0 2px 4px transparent,
+              inset 0 1px 1px transparent,
+              inset 0 -1px 1px transparent;
 }
 
 // High contrast: back to upstream's state-colored track and knob fill;
@@ -162,7 +176,8 @@ switch > slider:disabled {
     background-image: none;
   }
   switch > slider:disabled {
-    box-shadow: none;
+    background-image: none;
+    box-shadow: 0 2px 4px transparent;
   }
   // ...and the engaged thumb likewise: `switch:checked > slider` is one
   // class more specific than the revert above, so it needs its own.

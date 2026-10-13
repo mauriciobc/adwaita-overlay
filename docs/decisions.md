@@ -2797,3 +2797,111 @@ Stock reproduces the old look (within 1/255 light, exact dark); an app's dark
 sidebar stays dark and its text contrast goes up; a tint already at the window
 colour moves by <= 9/255 — readable, text still on the right side. No CSS
 parser warnings; `check-selectors` OK (46 tokens, 0 dead); `meson test` OK.
+
+## Motion pass: audit, snaps, reduce, lift — 13 Oct 2026
+
+**Scope.** "More animation on microinteractions, consistent with libadwaita's
+motion tokens." libadwaita defines no motion variables in CSS; its motion is
+literals in the sheet, and `upstream/motion.txt` now registers 14 of them
+(each commented with the overlay token it backs; `tools/check-selectors`
+reports a miss on the forward axis, so a libadwaita release that retunes
+motion is caught). Vocabulary, from the pinned 1.9.4 sheet: `200ms` on the
+house curve (state + focus-ring trio + expander arrow), `200ms ease-out`
+(`:backdrop` background-color / filter / box-shadow), `all 200ms linear`
+(overlay scrollbar), `150ms ease-in-out` (tabbar tab, separator opacity),
+`150ms ease-in` keyframe `needs_attention`, `100ms ease-out` + `250ms ease`
+(bottom sheet). The spinner keyframe is not registered: 1.10 moved it into
+AdwSpinner. Existing departures from upstream (enter 280, press 120, switch
+180, glow curve) are user-approved and B4 stays open; **new motion uses
+upstream's 200ms exit token, never the 280ms entry.**
+
+**Toolchain.** The installed GTK is 4.24.1, not the 4.22 of E6 (E6 findings
+re-measured below where they matter); the installed libadwaita is 1.10.0
+while the contract pins 1.9.4 (forward check passes against both).
+
+### Audit (tools/probe-motion.c, ~100 rows, `EMPTY_THEME=1`)
+
+A state is a SNAP only when INSTANT at 16 ms and 80 ms. Found:
+
+- **Overlay-caused:** opaque-button and crumb press (list had
+  `box-shadow`+`filter` but not `background-color`, which upstream animates);
+  scale slider hover/press (box-shadow slot count 3/4/4 and the halo in
+  different slots); switch knob disabled->enabled (`box-shadow: none` /
+  `background-image: none` against five slots / one layer).
+- **Upstream gaps:** `filter: Opacity()` on `:disabled` has no transition for
+  entry, spinbutton, progressbar, scale, check/radio, toggle, toggle-group,
+  switch and the flat button families.
+- **`REDUCE=1` was NOT total:** 16 rows still animated (upstream's literal
+  150/200ms on nodes the overlay never redeclares). The duration tokens only
+  silence lists the overlay declares.
+- **Not motion, deliberately untouched (H10-class):** `switch:hover`, scale
+  `highlight` hover/press and the overlay-scrollbar `.hovering` wash render no
+  change under the overlay although upstream changes there. The overlay's own
+  rest rules outrank upstream's hover washes at the same specificity. Not
+  recorded anywhere as intended; see BACKLOG AN6.
+
+### Mechanics (scratch probes, `/tmp/ov-mechanics`, GTK 4.24.1)
+
+- `var()` resolves inside `animation`, its longhands and keyframe bodies.
+- A `@keyframes` gated on `:active` / `:checked` / a class re-fires on every
+  false->true change, restarts if re-triggered, cancels at once when the
+  state drops, and layers over a concurrent transition on the same property.
+  Unlike E6's always-present popover node.
+- **Reduced motion and keyframes:** a `0ms` keyframe duration (or iteration
+  count 0) still paints one frame of its `from` value. Keyframe feedback MUST
+  be switched off with `animation: none` inside `prefers-reduced-motion`,
+  never with a duration token. Transitions with `0ms` are fine.
+- **A state already true at first map plays the keyframe once.** A pre-checked
+  checkbox would pop on every dialog open. Verdict: **no keyframe feedback on
+  `:checked`**; `:active`-gated keyframes would be safe but nothing here needs
+  them yet.
+- Animate fine: `opacity`, `filter`, `transform` (not clipped, no relayout,
+  hit-testing follows it), `-gtk-icon-transform`, `border-radius`, `box-shadow`
+  with differing slot COUNT. Snap / silent no-op: `box-shadow` where the inset
+  flag of corresponding slots differs, `background-image` with unequal layer
+  count. `min-width`, `padding`, `margin` animate but relayout every frame.
+
+### Decisions
+
+1. **Fix snaps with transitions, never by declaring where upstream already
+   animates.** Added: `background-color` to the opaque press list; `filter`
+   (exit token; switch token for the switch) to entry/spinbutton (`ov-inset`),
+   flat bar buttons (`ov-flat-button`), toggle, `toggle-group` (new rule),
+   scale, progressbar, check/radio (new bare rule restating upstream's
+   `background`+`box-shadow` at the exit token), switch. Scale slider rest is
+   padded to `[drop, halo(unlit), inset, inset]` and active reordered to match.
+   Switch knob disabled is five zero-alpha slots (U7 unchanged at rest) plus a
+   `background-image` entry in its list.
+2. **`src/_reduce.scss`: one catch-all** `* { transition-duration: 0ms }`
+   under `prefers-reduced-motion: reduce` (priority 800 outranks upstream's
+   200 regardless of specificity; it changes durations without replacing
+   property lists), plus `animation: none` on upstream's needs-attention dot.
+   The spinner keeps spinning (progress indicator, not decoration).
+   `REDUCE=1`: every row INSTANT or NO CHANGE (was 16 IN MOTION).
+3. **Two transform microinteractions, transitions only.** Scale knob lifts to
+   `scale(1.08)` while dragged (press token in, exit token out; scale-UP so the
+   hit area grows, never shrinks). The `image` in an `:active` button dips to
+   `-gtk-icon-transform: scale(0.92)` (node bounds unchanged). Scale-down on a
+   pressable node itself is rejected: it shrinks the hit area and flaps
+   `:active`. The sheet's "animates no movement at all" line in `_tokens.scss`
+   is therefore historical; reduce still zeroes the durations.
+4. **HC:** the icon dip reverts with the press well (a hidden cue otherwise);
+   the knob lift stays, because HC reverts the slider's press shadow to the
+   ring and the lift is then the only press cue.
+
+### Verification
+
+- Probe, `EMPTY_THEME=1`, 16 ms: every fixed state IN MOTION (button press
+  31->30->42->67; scale slider hover/press/enabled, progressbar, entry,
+  toggle, toggle-group, check/radio, switch). `REDUCE=1` and `NOANIM=1`: none.
+- Rest render pixel-identical (`gallery-diff`, 0 changed px at rest: `controls`
+  light/dark/HC for the switch and slider work, all 15 families for the
+  controls work). With `STATE=active` only the intended boxes change (two
+  14x12 icon boxes in `buttons`, the knob boxes in `controls`).
+- `tools/check-selectors` OK vs installed 1.10.0 and archived 1.9.4, motion
+  vocabulary OK (14 literals), `meson test` OK.
+- **Caveats:** the probe's `SCHEME=dark` run read identically to light in the
+  LiftMotion run (the dark switch looks inert headless), so dark verdicts for
+  the lift rows are unproven; a disabled switch is not in the gallery, checked
+  by probe values only; `reuse lint` could not be run (not installed here); no
+  live eyeball pass yet - feel is the user's call, as on 23 Sep.

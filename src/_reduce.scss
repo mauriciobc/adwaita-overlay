@@ -1,0 +1,50 @@
+// SPDX-FileCopyrightText: 2026 mauriciobc
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Reduced motion — the part the --ov-motion-* tokens cannot reach.
+//
+// _tokens.scss zeroes the duration tokens under prefers-reduced-motion, which
+// silences every transition this sheet DECLARES (all of them go through
+// ov-motion()). It cannot silence upstream's own literal 150/200ms
+// transitions on nodes the overlay never redeclares (measured with
+// tools/probe-motion.c, REDUCE=1: headerbar:backdrop, windowcontrols hover,
+// splitbutton separator, check/radio :checked, scale and scrollbar troughs,
+// toggle-group toggles, tabbar tab hover/active still animated at 16ms).
+//
+// The universal rule below fixes that without owning any property list.
+// `transition-duration` is a longhand: it changes the timing of whatever
+// upstream (or an app) declared and leaves `transition-property` alone, so
+// nothing is replaced and the state change still happens, just in one
+// frame. This sheet loads at USER priority (800) against upstream's THEME
+// (200) and the apps' APPLICATION (600): the cascade is decided by priority
+// before specificity, so the bare `*` outranks every upstream selector.
+// It does not use !important, and it sets no colour, shadow or image, so the
+// prefers-contrast reverts the L1 mixins emit are untouched (they act on
+// paint properties; this acts on timing only). No transition-delay exists in
+// upstream's sheet (checked on the pinned 1.9.4), so a zero duration is
+// instant.
+//
+// Keyframes are different, and this is a measured finding (Mechanics
+// probe): under reduce a keyframe animation with a 0ms duration still paints
+// one frame of its `from` value. A zero duration therefore does NOT turn
+// keyframe feedback off. Anything that animates with keyframes MUST be
+// switched off with `animation: none` inside this query — never with a
+// duration token. Upstream has two keyframe animations:
+//   - needs_attention (the 150ms dot "pop" on stacksidebar / stackswitcher
+//     rows): feedback, switched off below. The dot itself stays — only the
+//     animation goes, upstream's own static background-image still paints it.
+//   - spin (spinner:checked): deliberately NOT touched. A spinner is a
+//     progress indicator, not decoration; stopping it would read as a hang.
+//     This is why the animation reset names the needs-attention nodes
+//     instead of using `*`.
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms;
+  }
+
+  stacksidebar row.needs-attention > label,
+  stackswitcher > button.needs-attention > label,
+  stackswitcher > button.needs-attention > image {
+    animation: none;
+  }
+}

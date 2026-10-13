@@ -5,6 +5,8 @@
 #
 #   libadwaita  upstream/selectors.txt + upstream/variables.txt
 #               (variables = custom properties the sheet defines)
+#               + upstream/motion.txt (fixed motion literals the sheet
+#               must still contain: the --ov-motion-* tokens derive from them)
 #   gtk3        upstream/gtk3/selectors.txt + upstream/gtk3/variables.txt
 #               (variables = @define-color names — GTK3 has no custom
 #               properties), against GTK3's built-in Adwaita, light + dark
@@ -30,7 +32,10 @@
 #
 #   FORWARD  libadwaita / gtk3 — does upstream still PROVIDE everything the
 #            contract registers? This is the axis the pacman hook cares
-#            about: it is what catches an upgrade.
+#            about: it is what catches an upgrade. For libadwaita it covers
+#            selectors, variables and the motion vocabulary (substring match
+#            of upstream/motion.txt literals against the whitespace-collapsed
+#            sheet; libadwaita has no motion variables, only literals).
 #
 #   REVERSE  does the sheet actually DEPEND on anything unregistered?
 #            Checked against the built build/gtk.css: every non---ov- var()
@@ -107,6 +112,45 @@ diff_contract() {
   fi
 }
 
+# check_motion <css> <label> — the motion vocabulary axis. Unlike the two
+# contracts above this is not a set-diff of extracted atoms: upstream/
+# motion.txt lists fixed literals ("transition: opacity 150ms ease-in-out"),
+# each preceded by a comment naming the --ov-motion-* token it backs, and
+# every one must still appear in the sheet (whitespace-collapsed). Prints
+# the label with each miss so a retuned curve points at the token to re-read.
+# A missing contract is announced, like diff_contract: never a silent pass.
+check_motion() {
+  local css="$1" label="$2" contract="$contracts/motion.txt"
+  local flat="$tmp/flat.css" line lit note="" total=0 missing=""
+  if [[ ! -s "$contract" ]]; then
+    echo "CONTRACT NOT WRITTEN: motion.txt — nothing checked for this axis"
+    return 0
+  fi
+  normalize_sheet "$css" > "$flat"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      '') note="" ;;
+      '#'*) line="${line#\#}"; line="${line# }"; note="${note:+$note }$line" ;;
+      *)
+        total=$((total + 1))
+        lit="$(printf '%s' "$line" | tr -s '[:space:]' ' ')"
+        if ! grep -qF -- "$lit" "$flat"; then
+          missing+="  $lit"$'\n'"      backs: ${note:-(unlabelled)}"$'\n'
+        fi
+        note=""
+        ;;
+    esac
+  done < "$contract"
+  if [[ -n "$missing" ]]; then
+    echo "MISSING MOTION LITERALS against libadwaita $label:"
+    printf '%s' "$missing"
+    echo "  -> upstream retuned its motion: re-read the --ov-motion-* token it backs"
+    echo "     (src/_tokens.scss) and update upstream/motion.txt, in the same commit"
+    return 1
+  fi
+  echo "motion vocabulary OK: $total literals present in libadwaita $label"
+}
+
 check_libadwaita() {
   local css label status=0
   if [[ $# -gt 0 ]]; then
@@ -133,6 +177,7 @@ check_libadwaita() {
     "MISSING SELECTORS against libadwaita $label:" || status=1
   diff_contract "$contracts/variables.txt" "$tmp/adw-variables.txt" \
     "MISSING VARIABLES against libadwaita $label:" || status=1
+  check_motion "$css" "$label" || status=1
   [[ $status -eq 0 ]] && echo "contract OK against libadwaita $label"
   return $status
 }

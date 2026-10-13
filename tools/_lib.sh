@@ -46,6 +46,14 @@ extract_variables() {
   grep -oE -- '--[a-z0-9][a-z0-9-]*:' "$1" | tr -d ':' | sort -u
 }
 
+# normalize_sheet <gtk.css> — print the sheet with every whitespace run
+# (newlines included) collapsed to one space. The motion contract matches
+# fixed strings against this, so a literal survives upstream reflowing a
+# declaration over several lines.
+normalize_sheet() {
+  tr -s '[:space:]' ' ' < "$1"
+}
+
 # extract_var_refs <gtk.css> — print the sorted set of custom properties the
 # sheet READS via var(), leading dash runs normalised to exactly two.
 # The normalisation is what the contract file already does by hand:

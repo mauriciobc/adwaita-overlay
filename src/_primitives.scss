@@ -169,7 +169,8 @@ $ov-upstream-ring: outline-color, outline-width, outline-offset;
       var(--ov-flat-shade));
   }
   @include ov-motion(background var(--ov-motion-exit),
-                     box-shadow var(--ov-motion-exit));
+                     box-shadow var(--ov-motion-exit),
+                     filter var(--ov-motion-exit));
 }
 
 // ---------------------------------------------------------------------
@@ -339,7 +340,8 @@ $ov-upstream-ring: outline-color, outline-width, outline-offset;
   box-shadow: $ring,
               inset 0 1px 3px color-mix(in srgb, black 9%, transparent),
               inset 0 -1px 0 color-mix(in srgb, white 20%, transparent);
-  @include ov-motion(box-shadow var(--ov-motion-exit));
+  @include ov-motion(box-shadow var(--ov-motion-exit),
+                     filter var(--ov-motion-exit));
   &:focus-within {
     background-image: linear-gradient(to bottom,
       color-mix(in srgb, black 5%, transparent),

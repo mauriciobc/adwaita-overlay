@@ -620,6 +620,33 @@ Method and counts: decisions.md, "GTK3 accent: scope and method".*
   upstream's own Adwaita, so adding material means forking that SCSS, which
   is a different decision from the one this contract guards.
 
+## AN — Animation pass — 13 Oct 2026
+
+Evidence and verdicts: decisions.md, "Motion pass: audit, snaps, reduce, lift".
+
+- [x] **AN1** (P1) Table-driven `tools/probe-motion.c` (~100 rows) with
+  SNAP / IN MOTION / NO CHANGE verdicts, `EMPTY_THEME=1`, `PROBE=`. Subsumes
+  the probe half of X6.
+- [x] **AN2** (P1) Fix measured snaps with transitions (press background,
+  scale slider slot congruence, switch knob disabled, `filter` fade on
+  disabled for entry/spinbutton/progressbar/scale/check/radio/toggle/
+  toggle-group/switch/flat bar buttons). *Accept:* each row IN MOTION at 16 ms,
+  rest render pixel-identical. Done.
+- [x] **AN3** (P1) `REDUCE=1` total: `src/_reduce.scss`. Done.
+- [x] **AN4** (P1) `upstream/motion.txt` + forward-axis motion vocabulary
+  check. Done.
+- [x] **AN5** (P2) Knob lift on drag, icon dip on press (transform
+  transitions; HC: dip reverted, lift kept). Done; live feel pending.
+- [ ] **AN6** (P2) Lost upstream hover feedback, not motion: `switch:hover`,
+  scale `highlight` hover/press, overlay-scrollbar `.hovering` wash. Decide
+  per item: restore upstream's wash additively, or record as intended.
+- [ ] **AN7** (P2) Probe `SCHEME=dark` reads identically to light in the
+  scale-lift run - verify the dark switch actually applies headless, then
+  re-run the dark verdicts for the new rows.
+- [ ] **AN8** (P3) Keyframe feedback is only viable for `:active`/class-gated
+  triggers (first-map replay breaks `:checked`). Add only when a concrete
+  microinteraction needs a shape a transition cannot make (overshoot).
+
 ---
 
 ## Out of scope — explicit, do not creep

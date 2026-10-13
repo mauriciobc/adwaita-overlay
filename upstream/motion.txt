@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2026 mauriciobc
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# The motion vocabulary contract. One literal per line: a fixed string that
+# libadwaita's compiled gtk.css must still contain, with whitespace runs
+# collapsed to one space before the comparison.
+#
+# libadwaita has NO motion custom properties — its durations and curves are
+# literals inside the sheet — so src/_tokens.scss cannot read them through an
+# --ov-up-* alias the way it reads colours. The --ov-motion-* tokens are
+# instead DERIVED BY HAND from these literals (decisions.md E6, "House motion
+# spec"), and this file is what notices when upstream retunes them: a miss
+# means a token (or an ov-motion() restatement) may no longer match the
+# library it is meant to feel like.
+#
+# Rules:
+#   - the line directly above each literal is its label; it names the overlay
+#     token / rule the literal backs and is printed with a miss. A blank line
+#     ends a label.
+#   - add a line here in the same commit as the token or rule that mimics it;
+#     register only literals actually present in upstream/pinned-version's
+#     sheet (grep -F them in upstream/cache/<pinned>/gtk.css).
+#   - substring match, not selector-aware: it asserts upstream still SPELLS
+#     the motion, not where. Which widgets carry it is selectors.txt's job.
+#
+# Deliberately absent: `animation: spin 1s linear infinite`. 1.9.x had it
+# (the GtkSpinner keyframe), 1.10 moved the spinner into AdwSpinner and the
+# CSS animation is gone, so registering it would report a false miss on every
+# current system. The overlay mimics no spinner motion.
+
+# --ov-motion-ease: the one curve upstream state transitions use
+cubic-bezier(0.25, 0.46, 0.45, 0.94)
+
+# --ov-motion-ring: the focus-ring trio (ov-motion() restates it, since
+# `transition` replaces the whole list)
+outline-color 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), outline-width 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), outline-offset 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94)
+
+# --ov-motion-ring / -glow: state transition on a face (background + box-shadow)
+transition: background 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94)
+
+# --ov-motion-exit / expander arrow: icon rotation on the upstream curve
+transition: -gtk-icon-transform 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94)
+
+# backdrop fade (H6): window/bar background-color on :backdrop
+transition: background-color 200ms ease-out
+
+# backdrop fade (H6): window-handle / bar content dimming on :backdrop
+transition: filter 200ms ease-out
+
+# backdrop fade (H6): window.csd shadow on :backdrop
+transition: box-shadow 200ms ease-out
+
+# overlay scrollbar fade-in/out
+transition: all 200ms linear
+
+# tabbar tab background hover (150ms ease-in-out)
+transition: background 150ms ease-in-out
+
+# tabbar separator fade (150ms ease-in-out)
+transition: opacity 150ms ease-in-out
+
+# needs-attention dot: the keyframe the dot grows from
+@keyframes needs_attention
+
+# needs-attention dot: timing (150ms ease-in)
+animation: needs_attention 150ms ease-in
+
+# bottom-sheet outline radius settle (100ms ease-out; the `;` pins the
+# standalone form, the sheet itself pairs it with the shadow below)
+transition: border-radius 100ms ease-out;
+
+# bottom-sheet radius (100ms ease-out) + shadow (250ms ease) pair
+transition: border-radius 100ms ease-out, box-shadow 250ms ease

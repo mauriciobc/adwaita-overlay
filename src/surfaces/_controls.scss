@@ -78,16 +78,28 @@ levelbar.vertical > trough > block:not(.empty) {
   }
 }
 
+// Knob lift on drag: the active knob grows by $ov-knob-lift (a transform —
+// it animates, is not clipped at the allocation, and moves no sibling).
+// SCALE-UP ONLY: hit-testing follows the transform, so a scale-down on a
+// pressable would shrink its own hit area under the pointer. The rest
+// declares `transform: none` so the transition has a defined start; the
+// motion is a gesture cue, not paint, so it is not reverted in HC.
+$ov-knob-lift: 1.08;
+
 scale > trough > slider {
   background-color: color-mix(in srgb, var(--ov-up-light-1) 86%, var(--ov-up-view-bg));
   background-image: linear-gradient(to bottom,
     color-mix(in srgb, var(--ov-up-light-1) 96%, transparent),
     color-mix(in srgb, var(--ov-up-light-1) 80%, transparent));
   box-shadow: 0 2px 4px RGB(0 0 6 / 20%),
+              0 0 2px transparent,
               inset 0 1px 1px color-mix(in srgb, white 60%, transparent),
               inset 0 -1px 1px color-mix(in srgb, black 10%, transparent);
+  transform: none;
   @include ov-motion(box-shadow var(--ov-motion-exit),
-                     background-image var(--ov-motion-exit));
+                     background-image var(--ov-motion-exit),
+                     filter var(--ov-motion-exit),
+                     transform var(--ov-motion-exit));
 }
 
 // Hover: the knob picks up the colour of the fill it rides — the pen's
@@ -100,18 +112,37 @@ scale:hover > trough > slider {
               ov-lit-halo(),
               ov-lit-edge();
   @include ov-motion(background-image var(--ov-motion-enter),
-                     box-shadow var(--ov-motion-exit));
+                     box-shadow var(--ov-motion-exit),
+                     filter var(--ov-motion-exit),
+                     transform var(--ov-motion-exit));
 }
 
 // Drag: the knob keeps the house press scoop (dark top, lit foot — the
 // receding read every other pressed control has) and gains only the halo:
 // an accent-lit top edge would fight the scoop it is layered over.
 scale:active > trough > slider {
-  box-shadow: ov-lit-halo(),
-              0 1px 2px RGB(0 0 6 / 25%),
+  box-shadow: 0 1px 2px RGB(0 0 6 / 25%),
+              ov-lit-halo(),
               inset 0 1px 2px color-mix(in srgb, black 12%, transparent),
               inset 0 -1px 1px color-mix(in srgb, white 40%, transparent);
-  @include ov-motion(box-shadow var(--ov-motion-press));
+  transform: scale($ov-knob-lift);
+  @include ov-motion(box-shadow var(--ov-motion-press),
+                     filter var(--ov-motion-exit),
+                     transform var(--ov-motion-press));
+}
+
+// Slider rest is padded to the hover/active slot shape ([drop, halo, inset,
+// inset]): GTK pairs box-shadow slots by index, and an inset/outset mismatch
+// makes the whole transition instant. The unlit halo is zero-alpha, so the
+// rest render is unchanged.
+//
+// :disabled opacity has no upstream transition; one on the control itself.
+scale {
+  @include ov-motion(filter var(--ov-motion-exit));
+}
+
+progressbar {
+  @include ov-motion(filter var(--ov-motion-exit));
 }
 
 scale:disabled > trough > slider {
@@ -127,14 +158,16 @@ radio:not(:checked):not(:indeterminate) {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 15%, transparent),
               inset 0 1px 2px color-mix(in srgb, black 10%, transparent);
   @include ov-motion(box-shadow var(--ov-motion-exit),
-                     background-color var(--ov-motion-exit));
+                     background-color var(--ov-motion-exit),
+                     filter var(--ov-motion-exit));
 
   &:hover {
     box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 20%, transparent),
                 inset 0 1px 2px color-mix(in srgb, black 12%, transparent);
     background-color: color-mix(in srgb, currentColor 5%, transparent);
     @include ov-motion(background-color var(--ov-motion-enter),
-                       box-shadow var(--ov-motion-exit));
+                       box-shadow var(--ov-motion-exit),
+                       filter var(--ov-motion-exit));
   }
 
   &:active {
@@ -142,7 +175,8 @@ radio:not(:checked):not(:indeterminate) {
                 inset 0 2px 4px color-mix(in srgb, black 16%, transparent);
     background-color: color-mix(in srgb, currentColor 25%, transparent);
     @include ov-motion(box-shadow var(--ov-motion-press),
-                       background-color var(--ov-motion-press));
+                       background-color var(--ov-motion-press),
+                       filter var(--ov-motion-exit));
   }
 }
 
@@ -154,7 +188,18 @@ radio:indeterminate:active {
   // Upstream darkens the fill with a background-image on this same press;
   // restated so it fades at press speed instead of snapping.
   @include ov-motion(box-shadow var(--ov-motion-press),
-                     background var(--ov-motion-press));
+                     background var(--ov-motion-press),
+                     filter var(--ov-motion-exit));
+}
+
+// Upstream's bare check/radio carries `background 200ms, box-shadow 200ms`
+// (the checked fill fade); declaring a transition replaces it, so both are
+// restated here beside the filter that :disabled needs.
+check,
+radio {
+  @include ov-motion(background var(--ov-motion-exit),
+                     box-shadow var(--ov-motion-exit),
+                     filter var(--ov-motion-exit));
 }
 
 // ---------------------------------------------------------------------

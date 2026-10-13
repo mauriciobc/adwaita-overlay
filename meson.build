@@ -108,7 +108,8 @@ install_data(files('tools/check-selectors'),
   install_dir: helperdir, install_mode: 'rwxr-xr-x')
 install_data(files('tools/_lib.sh'),
   install_dir: helperdir, install_mode: 'rw-r--r--')
-install_data(files('upstream/selectors.txt', 'upstream/variables.txt'),
+install_data(files('upstream/selectors.txt', 'upstream/variables.txt',
+    'upstream/motion.txt'),
   install_dir: helperdir / 'contracts')
 
 # Hermetic reverse axis: built sheet vs. registered upstream variables. Needs

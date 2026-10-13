@@ -34,6 +34,10 @@
 @import "surfaces/calendar";
 @import "surfaces/sheet";
 
+// Reduced motion for what the --ov-motion-* tokens cannot reach: upstream's
+// literal transitions and its keyframes (see the file header).
+@import "reduce";
+
 // The user layer — personal overrides, last word, empty by default. Not a
 // theme fork: the escape hatch for one machine's taste, where the built
 // sheet is checked by the same contract reverse axis as everything above.

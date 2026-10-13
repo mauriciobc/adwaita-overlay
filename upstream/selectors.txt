@@ -138,6 +138,7 @@ notebook > header.left > tabs > tab:checked
 notebook > header.right > tabs > tab:checked
 notebook > header.top > tabs > tab:checked
 placessidebar .navigation-sidebar > row
+placesview .server-list-button > image
 popover > contents
 popover.menu box.circular-buttons button.circular.image-button.model
 popover.menu box.inline-buttons button.image-button.model
@@ -186,6 +187,9 @@ spinbutton:drop(active)
 splitbutton.destructive-action
 splitbutton.flat > button
 splitbutton.flat > menubutton > button
+stacksidebar row.needs-attention > label
+stackswitcher > button.needs-attention > image
+stackswitcher > button.needs-attention > label
 switch
 switch > slider
 switch > slider:disabled
@@ -200,6 +204,7 @@ tabbar tab button.image-button
 tabbar tab:selected
 tabbar tabbox.single-tab tab
 tabthumbnail button
+tabthumbnail button > image
 toast
 toggle-group
 toggle-group > toggle:checked
@@ -214,4 +219,5 @@ toolbarview > .top-bar actionbar > revealer > box
 toolbarview > .top-bar headerbar
 toolbarview > .top-bar searchbar > revealer > box
 treeview.view > header > button
+windowcontrols > button > image
 windowcontrols > button:not(.raised):not(.suggested-action):not(.destructive-action):not(.opaque).image-button
