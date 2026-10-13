@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 mauriciobc
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// L2 — window and panes. Migrated unchanged in effect from the pre-overlay
+// L2 — content pane. Migrated unchanged in effect from the pre-overlay
 // ~/.config/gtk-4.0/gtk.css (BACKLOG.md P1.5); the values now derive from
 // upstream variables (_tokens.scss), so dark mode tracks too.
 //
@@ -17,15 +17,18 @@
 // priority 800 regardless.
 // .sidebar-pane: moved to _sidebar.scss.
 //
-// A blur host ($ov-blur-host, _primitives.scss) is left alone: its app makes
-// the window transparent so the blurred desktop shows through the sidebar,
-// and our 96% tint at priority 800 would paint it back in.
-
-window:not(#{$ov-blur-host}),
-dialog {
-  background-color: var(--ov-surface-window);
-}
+// Grounds are never replaced here. This sheet outranks the app's own CSS
+// (800 vs 600), so a window or pane `background-color` of ours would
+// overwrite whatever the app paints — a weather sky, a black lightbox, a
+// blurred translucent sidebar — while its `color` stays. The window,
+// dialog and `.sidebar-pane` are therefore left to upstream (decisions.md
+// H10; the tint and the transparent sidebar are gone).
+//
+// `.content-pane` gets only a faint white wash as `background-image`
+// (dark: #222226 -> #2a2a2e, the old +8; light: <1/255), additive over
+// whatever ground is there.
 
 .content-pane {
-  background-color: var(--ov-surface-content);
+  background-image: linear-gradient(color-mix(in srgb, white 4%, transparent),
+                                    color-mix(in srgb, white 4%, transparent));
 }

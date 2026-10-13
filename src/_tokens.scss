@@ -191,8 +191,6 @@
   // ---------------------------------------------------------------------
   --ov-up-window-bg: var(--window-bg-color, @ov_stock_bg);
   --ov-up-view-bg: var(--view-bg-color, @ov_stock_base);
-  --ov-up-bar-bg: var(--headerbar-bg-color, @ov_stock_bg);
-  --ov-up-bar-backdrop: var(--headerbar-backdrop-color, @ov_stock_bg);
   --ov-up-accent: var(--accent-color, @ov_stock_accent);
   --ov-up-accent-fill: var(--accent-bg-color, @ov_stock_sel_bg);
   // The two semantic fills upstream paints levelbar blocks with directly
@@ -423,41 +421,23 @@
   }
 
   // ---------------------------------------------------------------------
-  // Window and pane translucency — migrated from the pre-overlay
-  // ~/.config/gtk-4.0/gtk.css (BACKLOG.md P1.5). The old file hardcoded
-  // rgba(242, 242, 244, …), which forced light values in dark mode; the
-  // derivations below track both schemes for free.
-  //
-  // Retuned 23 Sep 2026. 84% was the migrated alpha verbatim, and 16% of
-  // whatever sits behind the window is a *readable* layer, not a tint: a
-  // window over another window showed the backdrop's own text through its
-  // content — measured on the headerbar family, body pixels composite at
-  // alpha 215/255 = 84%, i.e. 38/255 of contrast against a #0f1419
-  // backdrop, which the eye resolves as text. 96% keeps the translucency
-  // as a tint (4% bleed, ~10/255 — under the legibility floor) while the
-  // window still picks up the backdrop's cast. One number; `dialog` rides
-  // the same token.
+  // Sidebar wash (surfaces/_sidebar.scss): pure white or pure black — the
+  // opposite of the pane's own text — at the stock step between sidebar and
+  // window colour. `currentColor` is resolved where the token is USED (GTK
+  // substitutes the text), so each pane reads its own text. Text lightness l
+  // (oklab, 0 black .. 1 white; measured: light-scheme text ~0, dark ~1):
+  // L = clamp(0, 500 - l*1000, 1) is white for dark text, black for light
+  // text. The clamp is REQUIRED: an unclamped L of 500 overflows the
+  // premultiplied channels and the layer paints opaque (measured).
+  // Alpha is linear in l: 0 -> 75% = (250-235)/(255-235), 1 -> 26% = 12/46,
+  // the two stock steps.
+  // Chroma is zeroed so near-black text's trace of blue is not amplified.
+  // GTK's calc() reads `l * k` but not `k * l` nor a parenthesised term
+  // (probed). No prefers-color-scheme split on purpose: an app that forces its
+  // own scheme (AdwStyleManager.color-scheme) does not flip that media query
+  // but does flip its text colour — the text is the only honest signal.
   // ---------------------------------------------------------------------
-  --ov-surface-window: color-mix(in srgb, var(--ov-up-window-bg) 96%, transparent);
-  // light: #f2f2f4 -> +8/+8/+6 = #fafafa — the old hardcoded value, exact.
-  --ov-surface-content: rgb(from var(--ov-up-window-bg) calc(r + 8) calc(g + 8) calc(b + 6));
-  --ov-surface-sidebar: transparent;
-
-  // ---------------------------------------------------------------------
-  // Chrome (bar) surface base colour. The bar material is an opaque
-  // gradient built ON this colour, so this token — not a background-color
-  // on the node — is what a bar state can move: the gradient's stops are
-  // opaque, which makes anything painted underneath it invisible.
-  //   rest     — the lit chrome colour (upstream's own)
-  //   backdrop — upstream's backdrop colour, which is @window_bg_color:
-  //              the chrome recedes into the content of an unfocused
-  //              window (light: #ffffff -> #fafafb, a whisper; dark:
-  //              #2e2e32 -> #222226, a real dim).
-  // Kill switch: point --ov-bar-backdrop-base at var(--ov-up-bar-bg)
-  // and the bar stays lit in every state (one edit, D5 pattern).
-  // ---------------------------------------------------------------------
-  --ov-bar-base: var(--ov-up-bar-bg);
-  --ov-bar-backdrop-base: var(--ov-up-bar-backdrop);
+  --ov-sidebar-wash: oklab(from currentColor clamp(0, calc(500 - l * 1000), 1) 0 0 / calc(0.75 - l * 0.49));
 
   // ---------------------------------------------------------------------
   // Motion — the house spec (decisions.md 19 Sep 2026) as tokens: one

@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 mauriciobc
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// L2 — headerbar. The floating surface: accent-free gradient (14/10,
-// user-tuned) + scheme-split grain tile @5%, over --ov-bar-base.
+// L2 — headerbar. The floating surface: accent-free sheen (14/10,
+// user-tuned) + scheme-split grain tile @5%, additive over the bar's own
+// ground (ov-bar-surface()).
 //
 // In AdwToolbarView apps (Nautilus, etc.), the top bar is a container
 // `toolbarview > .top-bar` wrapping a vertical GtkBox. When multiple bars
@@ -11,42 +12,16 @@
 // We style `toolbarview > .top-bar` to cover the full container and set
 // `background: none` on its nested `headerbar` to prevent double-painting.
 //
-// The material itself is `ov-bar-surface()` (L1): gradient + grain over
-// --ov-bar-base, which is what lets the backdrop state move the whole
-// surface by re-pointing one token.
+// The material itself is `ov-bar-surface()` (L1): translucent sheen + grain.
+// No colour is set here, so the backdrop state (upstream's
+// `headerbar:backdrop` colour swap) and any app-painted bar colour show
+// through unchanged. The unfocused recession needs no rule of ours.
 
 headerbar,
 toolbarview > .top-bar {
   @include ov-bar-surface();
 }
 
-// Unfocused windows. Upstream's own signal (`headerbar:backdrop` →
-// var(--ov-up-bar-backdrop) == @window_bg_color) is otherwise dead
-// here, twice over: our rule paints every state, and the gradient's stops
-// are opaque, so painting a different background-color underneath would
-// still show nothing. Re-pointing the base token moves the real thing.
-// The transition comes from ov-bar-surface() on the rule above.
-// In AdwToolbarView apps upstream dims `toolbarview > .top-bar.raised:backdrop`
-// and switches the nested headerbar's transition off; we paint the whole
-// container, so the whole container recedes.
-headerbar:backdrop,
-toolbarview > .top-bar:backdrop {
-  --ov-bar-base: var(--ov-bar-backdrop-base);
-}
-
 toolbarview > .top-bar headerbar {
   background: none;
-}
-
-// The sidebar's top bar in a blur host ($ov-blur-host): the bar material is
-// opaque and would cover the blur across the whole header strip. Restate
-// upstream instead — transparent at rest, the bar colour once content
-// scrolls under it (`.raised`). Higher specificity than the rules above, so
-// it also wins inside ov-bar-surface()'s dark and contrast @media blocks.
-window#{$ov-blur-host} .sidebar-pane toolbarview > .top-bar {
-  background: none;
-}
-
-window#{$ov-blur-host} .sidebar-pane toolbarview > .top-bar.raised {
-  background-color: var(--ov-up-bar-bg);
 }

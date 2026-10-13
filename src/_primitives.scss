@@ -55,24 +55,6 @@
 // ---------------------------------------------------------------------
 $ov-upstream-ring: outline-color, outline-width, outline-offset;
 
-// ---------------------------------------------------------------------
-// Background blur — the window class an app sets while its sidebar wears
-// `backdrop-filter: blur()` over a transparent window (GTK 4.24 forwards
-// it to the compositor's background-effect protocol, GNOME 51).
-//
-// GTK CSS cannot select on a property's value, and there is no :has() or
-// @supports, so the sheet cannot detect the blur itself: the app has to
-// say so with a class. And because this sheet sits at priority 800 over the
-// app's 600, ANY background the overlay declares on those nodes wins and
-// paints over the blur — so the window, the sidebar pane and the sidebar's
-// top bar step aside for this class (_window, _sidebar, _headerbar).
-//
-// Not an upstream atom: libadwaita has no blur class (verified against
-// 1:1.10.0-1), so it is deliberately absent from upstream/selectors.txt.
-// The name is babble's (io.github.mauriciobc.Babble, window.py).
-// ---------------------------------------------------------------------
-$ov-blur-host: ".translucent-sidebar";
-
 @mixin ov-motion($specs...) {
   $list: ();
   @each $spec in $specs {
@@ -90,34 +72,41 @@ $ov-blur-host: ".translucent-sidebar";
 
 // ---------------------------------------------------------------------
 // Bar surface — the chrome material (headerbar, top-bar, searchbar /
-// actionbar box, .toolbar). One definition because the surface has two
-// states that must not drift: rest and backdrop. The base colour is the
-// token --ov-bar-base (L0), so a backdrop rule re-points the token instead
-// of restating six layers — and the stops are opaque, so the token is the
-// *only* way to move this surface.
+// actionbar box, .toolbar, tab strip). ADDITIVE: a translucent sheen
+// (white at the top, black at the bottom) plus the grain tile, painted as
+// `background-image` over whatever ground is already there. It declares no
+// `background-color`, so the node keeps the colour upstream — or the app —
+// gave it, and so does its backdrop state (upstream's own
+// `headerbar:backdrop` swap). Over libadwaita's opaque bar colour the result
+// equals the old opaque gradient (color-mix(white 14%, base) is the same
+// compositing as white @14% over base).
+//
+// Why additive (decisions.md H10): this sheet sits at priority 800 over the
+// app's 600, so every colour it SETS on a container replaces the app's —
+// and the app's `color` stays, which is how white text ended up on a pale
+// bar (Mousam, Babble's media viewer). A translucent layer cannot break
+// that pairing: over a black bar it is a dark sheen, over a pale one a pale
+// sheen. No per-app opt-out exists or is needed.
+//
 // Grain URI comes from --ov-texture-image (scheme-split, killed by the
-// texture kill switch); the dark block only diverges in gradient strength.
+// texture kill switch); the dark block only diverges in sheen strength.
 // ---------------------------------------------------------------------
 @mixin ov-bar-surface() {
-  background:
+  background-image:
     var(--ov-texture-image),
     linear-gradient(to bottom,
-      color-mix(in srgb, white 14%, var(--ov-bar-base)),
-      color-mix(in srgb, black 10%, var(--ov-bar-base))),
-    var(--ov-bar-base);
-  background-repeat: repeat, no-repeat, no-repeat;
-  @include ov-motion(background var(--ov-motion-exit));
+      color-mix(in srgb, white 14%, transparent),
+      color-mix(in srgb, black 10%, transparent));
+  background-repeat: repeat, no-repeat;
   @media (prefers-color-scheme: dark) {
-    background:
+    background-image:
       var(--ov-texture-image),
       linear-gradient(to bottom,
-        color-mix(in srgb, white 4%, var(--ov-bar-base)),
-        color-mix(in srgb, black 8%, var(--ov-bar-base))),
-      var(--ov-bar-base);
-    background-repeat: repeat, no-repeat, no-repeat;
+        color-mix(in srgb, white 4%, transparent),
+        color-mix(in srgb, black 8%, transparent));
   }
   @media (prefers-contrast: more) {
-    background: var(--ov-bar-base);
+    background-image: none;
   }
 }
 

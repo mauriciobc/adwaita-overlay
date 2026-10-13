@@ -25,8 +25,6 @@
 --border-opacity
 --dark-5
 --disabled-opacity
---headerbar-backdrop-color
---headerbar-bg-color
 --light-1
 --slider-border-color
 --success-bg-color

@@ -7,7 +7,7 @@
 //   strip    — a standalone tab bar paints upstream's flat headerbar colour
 //              right under a headerbar that wears the bar material (gradient
 //              + grain), so the chrome broke in two. It now wears
-//              ov-bar-surface() itself, with the same backdrop re-point. Where
+//              ov-bar-surface() itself. Where
 //              upstream makes the strip transparent (inside a toolbarview bar,
 //              or `.inline`) it stays transparent: the bar behind it already
 //              carries the material.
@@ -23,10 +23,6 @@
 
 tabbar .box {
   @include ov-bar-surface();
-}
-
-tabbar .box:backdrop {
-  --ov-bar-base: var(--ov-bar-backdrop-base);
 }
 
 // Upstream's transparent contexts, restated: our rule above outranks theirs.

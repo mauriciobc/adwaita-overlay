@@ -196,7 +196,6 @@ switch:checked:active
 switch:checked:hover
 switch:hover
 tabbar .box
-tabbar .box:backdrop
 tabbar tab button.image-button
 tabbar tab:selected
 tabbar tabbox.single-tab tab
@@ -210,13 +209,9 @@ toggle-group:disabled
 toolbarview > .bottom-bar .collapse-spacing .toolbar
 toolbarview > .bottom-bar actionbar > revealer > box
 toolbarview > .bottom-bar searchbar > revealer > box
-toolbarview > .bottom-bar.raised
-toolbarview > .bottom-bar.raised:backdrop
 toolbarview > .top-bar .collapse-spacing .toolbar
 toolbarview > .top-bar actionbar > revealer > box
 toolbarview > .top-bar headerbar
 toolbarview > .top-bar searchbar > revealer > box
-toolbarview > .top-bar.raised
-toolbarview > .top-bar.raised:backdrop
 treeview.view > header > button
 windowcontrols > button:not(.raised):not(.suggested-action):not(.destructive-action):not(.opaque).image-button

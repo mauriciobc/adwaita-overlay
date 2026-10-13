@@ -2707,3 +2707,93 @@ After = stock, exactly, in both schemes; raised sidebar header matches stock
 before/after is 0 px changed across all 15 families, light and dark. The
 content pane keeps the overlay's material in a blur host (babble keeps it
 opaque too).
+
+## H10: Additive grounds — no per-app opt-outs — 13 Oct 2026
+
+Supersedes the mechanism of H9 (the `$ov-blur-host` class hook).
+
+**Problem.** This sheet runs at priority 800, the app's CSS at 600. Every
+*colour* the overlay sets on a container replaces the app's, while the app's
+`color` is untouched. Mousam (dark weather sky, `color: white`) and Babble's
+media viewer (`#000` / `#fff`) therefore got a pale bar or window under white
+text in the light scheme; Babble's blur sidebar was the same bug in H9, fixed
+with a class hook. Fixing each app with a host class does not scale (rejected,
+user, 13 Oct: the target is full Adwaita compatibility, not a list).
+
+**Rule.** A rule of ours may *add* to a surface; it may not *replace* a colour
+the app or upstream can set. For containers that means:
+
+- no `background-color` / `background` shorthand with a colour;
+- translucent layers in `background-image` (a pair of translucent stops, grain),
+  `box-shadow`, and `filter` only.
+
+A translucent layer cannot break the text/ground pairing: over a black bar it
+is a dark sheen, over a pale one a pale sheen.
+
+**Changes.**
+
+| surface | before | now |
+| --- | --- | --- |
+| `ov-bar-surface()` (headerbar, top/bottom bar, searchbar, actionbar, `.toolbar`, tab strip) | opaque gradient on `--ov-bar-base`, backdrop by re-pointing it | `white 14%` → `black 10%` sheen + grain as `background-image` (dark 4/8); backdrop is upstream's own colour swap |
+| `window`, `dialog` | 96% window-colour tint | removed — stock |
+| `.sidebar-pane` | `transparent` | `--ov-sidebar-wash`: black or white (the opposite of the pane's own text) at 75% / 26% as `background-image` — see below |
+| `.content-pane` | opaque window colour +8 | `white 4%` wash as `background-image` (dark: exactly +8; light: <1/255) |
+| `$ov-blur-host` hooks, `toolbarview > .top-bar.raised` restatement | needed to undo the above | deleted, nothing to undo |
+
+Added: `--ov-sidebar-wash`. Removed: tokens `--ov-bar-base`, `--ov-bar-backdrop-base`, `--ov-surface-window`,
+`--ov-surface-sidebar`, `--ov-up-bar-bg`, `--ov-up-bar-backdrop`; contract
+entries `--headerbar-bg-color`, `--headerbar-backdrop-color`, `.sidebar-pane`,
+`tabbar .box:backdrop`, `toolbarview > .{top,bottom}-bar.raised[:backdrop]`.
+Buttons were already additive (box-shadow only, "Button face" verdict).
+
+**Visual cost, stated.** Over libadwaita's opaque headerbar colour the sheen
+equals the old gradient exactly (colour-mix(white 14%, base) is white @14% over
+base). Differences: flat `toolbarview` bars no longer sit on a lit `#fff` base
+but on the window colour; sidebars are upstream's colour instead of the window
+colour; the 4% window tint is gone.
+
+### Measured
+
+Offscreen mocks with the apps' own CSS at APPLICATION priority, light scheme,
+`XDG_CONFIG_HOME` emptied, **no app-specific rule in the sheet**:
+Babble media viewer — black bars with a faint sheen, dark zoom pill, as the app
+draws it; Mousam — dark-blue sky intact, translucent header with white title.
+Plain GTK (no libadwaita) `GtkHeaderBar`: fill kept (stock + sheen), not
+transparent. `check-selectors` forward and reverse OK, 45 tokens, 0 dead.
+`gallery-diff` old vs new: every family changed — the removed 4% window tint
+(max Δ 27 light / 30 dark over the offscreen backdrop), expected.
+
+### Sidebar wash: the translucent layer that cannot break contrast
+
+Restoring "sidebar reads as the window" additively needs a layer strong enough
+to close the stock step (light 75% white, dark 26% black). A fixed white wash
+at that strength would bury light text on an app's dark sidebar in the light
+scheme — the original bug. So the layer is derived from the pane's own text
+colour: white when the text is dark, black when it is light, i.e. it only ever
+moves the ground *away* from the text.
+
+`--ov-sidebar-wash: oklab(from currentColor clamp(0, calc(500 - l * 1000), 1)
+0 0 / calc(0.75 - l * 0.49))`. No `prefers-color-scheme` split: an app that
+forces its scheme flips its text colour but not that media query (measured: in
+a `FORCE_DARK` probe a `@media (prefers-color-scheme: dark)` rule did not
+match), so the first version, split by media, painted 75% black on a forced-dark
+pane. GTK quirks found by probing: `calc()` reads `l * k` but not `k * l` nor a
+parenthesised term; an unclamped L (500) overflows the premultiplied channels
+and the layer paints opaque. Sheet-wide caveat that remains: every other
+`prefers-color-scheme` split in this sheet has the same forced-scheme blind spot.
+
+Offscreen `AdwNavigationSplitView`, sidebar pixel (stock / old transparent / new):
+
+| case | stock | old | new |
+| --- | --- | --- | --- |
+| light, stock | 235,235,237 | 250,250,251 | 249,249,250 |
+| dark, stock | 46,46,50 | 34,34,37 | 34,34,37 |
+| light, app-dark pane + white text | 27,36,48 | 250,250,251 (washed out) | 20,27,36 |
+| dark, app-dark pane + white text | 27,36,48 | 34,34,37 | 20,27,36 |
+| light, app 70% window tint (Babble-style) | 250,250,252 | 250,250,251 | 254,254,254 |
+| dark, app 70% window tint | 34,34,38 | 34,34,37 | 25,25,28 |
+
+Stock reproduces the old look (within 1/255 light, exact dark); an app's dark
+sidebar stays dark and its text contrast goes up; a tint already at the window
+colour moves by <= 9/255 — readable, text still on the right side. No CSS
+parser warnings; `check-selectors` OK (46 tokens, 0 dead); `meson test` OK.

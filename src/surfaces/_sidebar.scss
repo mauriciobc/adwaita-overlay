@@ -4,8 +4,8 @@
 // Upstream source: widgets/_split-view.scss, widgets/_navigation-sidebar.scss
 //
 // Surfaces:
-//   .sidebar-pane        — the container pane in AdwNavigationSplitView / AdwOverlaySplitView.
-//                          Maintains translucency through --ov-surface-sidebar.
+//   .sidebar-pane        — upstream's ground is kept; the overlay adds one translucent
+//                          wash toward the window colour (below), never a colour.
 //   .navigation-sidebar  — the navigation list widget (Nautilus, Settings, etc.).
 //
 // Material decisions:
@@ -29,10 +29,24 @@
 //   * High contrast: clean reversion to transparent under prefers-contrast: more,
 //     letting upstream's 1px HC outline take over.
 
-// Not in a blur host ($ov-blur-host): there the app tints the pane over its
-// backdrop-filter, and declaring anything here at 800 would replace the tint.
-window:not(#{$ov-blur-host}) .sidebar-pane {
-  background-color: var(--ov-surface-sidebar);
+// Sidebar wash. Upstream's sidebar sits a step off the window colour
+// (light #ebebed vs #fafafb, dark #2e2e32 vs #222226); this sheet used to make
+// the pane transparent so it read as the window. That replaced the colour —
+// and broke apps that paint their own sidebar (decisions.md H9, H10). The wash
+// reaches the same look additively: it is the INVERSE OF THE PANE'S OWN TEXT
+// COLOUR at a fixed alpha, as a `background-image` over the ground that is
+// already there.
+//   dark text (light pane)  -> white wash   -> lighter, text contrast up
+//   light text (dark pane)  -> black wash   -> darker,  text contrast up
+// Because the layer is derived from `currentColor`, it can only ever move the
+// ground AWAY from the text, in every scheme, for every app — a dark custom
+// sidebar under light text in the LIGHT scheme gets darker, not paler.
+// Alphas (--ov-sidebar-wash, _tokens.scss) are the exact stock steps.
+.sidebar-pane {
+  background-image: linear-gradient(var(--ov-sidebar-wash), var(--ov-sidebar-wash));
+  @media (prefers-contrast: more) {
+    background-image: none;
+  }
 }
 
 // Exit microinteraction: applied on mouse leave when returning to unhovered state
